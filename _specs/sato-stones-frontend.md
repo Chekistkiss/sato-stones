@@ -16,6 +16,7 @@
 10. Lottery ops: request draw when `canRequestPrizeDraw()` is true; show pending VRF status, 1-day timeout recovery, and `claimPrize()` when `pendingPrize(user) > 0`.
 11. Wallet lifecycle: handle `accountsChanged` and `chainChanged` by clearing connected state and prompting reconnect. Network switch should use `wallet_addEthereumChain` fallback for missing chains.
 12. Mobile nav collapses into a menu so anchor links do not wrap over the hero/app content.
+13. Motion is progressive enhancement: scroll reveal, mobile menu transitions, live-stat count-up, mint preview feedback, transaction status pulse, and `/whitepaper/` reading progress/active TOC must respect `prefers-reduced-motion`.
 
 ## Stack
 

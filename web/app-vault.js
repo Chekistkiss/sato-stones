@@ -94,6 +94,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   initIntroAnimation();
   initScrollNav();
   initMobileNav();
+  initScrollReveal();
   updateExplorerLinks();
   if (!(await waitForEthers(5000))) return;
   isDemo = !CONFIG.contractAddress || CONFIG.contractAddress.startsWith("0x000");
@@ -206,6 +207,8 @@ function getReadProvider() {
 
 async function fetchGlobal() {
   const v = new ethers.Contract(CONFIG.contractAddress, VAULT_ABI, getReadProvider());
+  const previousMinted = state.minted;
+  const previousGenesis = state.genesis;
   state.minted = Number(await v.totalMintedEver());
   state.genesis = Number(await v.genesisMinted());
   const season = Number(await v.currentSeasonId());
@@ -215,12 +218,13 @@ async function fetchGlobal() {
   state.pool = pool;
   state.prize = prize;
 
-  setText("statMinted", state.minted + " / " + CONFIG.maxSupply);
+  animateCountText("statMinted", previousMinted, state.minted, (value) => value + " / " + CONFIG.maxSupply);
   setText("statTier", "Season " + season);
   setText("statPrice", "Vault lock");
   setText("statPrize", formatSato(prize) + " SATO");
-  setText("heroBurnCount", state.minted);
-  setText("heroBurnSecondary", state.genesis + " / 21 Genesis");
+  pulseText("statPrize");
+  animateCountText("heroBurnCount", previousMinted, state.minted, (value) => String(value));
+  animateCountText("heroBurnSecondary", previousGenesis, state.genesis, (value) => value + " / 21 Genesis");
 }
 
 async function updateMintUI() {
@@ -230,11 +234,13 @@ async function updateMintUI() {
   const summary = document.getElementById("mintSummary");
   const approveBtn = document.getElementById("approveBtn");
   const mintBtn = document.getElementById("mintBtn");
+  updateMintMotion(lock);
   if (approveBtn) approveBtn.disabled = !signer;
   if (mintBtn) mintBtn.disabled = !signer;
   if (summary) {
     summary.textContent =
       "Gross: " + gross + " SATO | Lock: " + [15, 30, 60][lock] + "d | Genesis left: " + (21 - state.genesis);
+    restartAnimation(summary, "motion-pop");
   }
   setText("mintStoneNum", "#" + (state.minted + 1));
   if (!signer || !vault || !sato) return;
@@ -265,6 +271,7 @@ async function updateMintUI() {
         " SATO | Weight: " + preview.weight.toString() +
         " | Rarity: " + RARITY[Number(preview.rarity)] +
         (preview.wouldBeGenesis ? " | Genesis eligible" : "");
+      restartAnimation(summary, "motion-pop");
     }
     if (approveBtn) {
       approveBtn.disabled = issues.length > 0 || approved;
@@ -653,6 +660,7 @@ function showTxStatus(payload, type) {
   const p = typeof payload === "string" ? { title: "Status", message: payload, hint: "" } : payload;
   el.classList.remove("hidden", "pending", "success", "error");
   el.classList.add(type);
+  restartAnimation(el, "tx-flash");
   document.getElementById("txStatusTitle").textContent = p.title || type;
   document.getElementById("txStatusMessage").textContent = p.message || "";
   const h = document.getElementById("txStatusHint");
@@ -679,6 +687,43 @@ function setText(id, t) {
   if (el) el.textContent = t;
 }
 
+function animateCountText(id, from, to, formatter) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  if (from === to || window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    el.textContent = formatter(to);
+    return;
+  }
+  const start = performance.now();
+  const duration = 720;
+  const delta = to - from;
+  function tick(now) {
+    const progress = Math.min(1, (now - start) / duration);
+    const eased = 1 - Math.pow(1 - progress, 3);
+    el.textContent = formatter(Math.round(from + delta * eased));
+    if (progress < 1) requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+}
+
+function pulseText(id) {
+  const el = document.getElementById(id);
+  if (el) restartAnimation(el, "motion-pop");
+}
+
+function restartAnimation(el, className) {
+  el.classList.remove(className);
+  void el.offsetWidth;
+  el.classList.add(className);
+}
+
+function updateMintMotion(lock) {
+  const box = document.getElementById("mintBox");
+  if (!box) return;
+  box.dataset.lock = ["15", "30", "60"][lock] || "15";
+  restartAnimation(box, "mint-shift");
+}
+
 function updateExplorerLinks() {
   const base = (CONFIG.explorerBaseUrl || "").replace(/\/$/, "");
   const c = document.getElementById("contractLink");
@@ -696,6 +741,24 @@ function initIntroAnimation() {
 function initScrollNav() {
   const nav = document.getElementById("nav");
   window.addEventListener("scroll", () => nav?.classList.toggle("nav-scrolled", window.scrollY > 40));
+}
+
+function initScrollReveal() {
+  document.body.classList.add("motion-ready");
+  const targets = document.querySelectorAll(".fade-section, .stagger-item, .appear-up, .whitepaper-teaser-cards > div");
+  if (!("IntersectionObserver" in window)) {
+    targets.forEach((el) => el.classList.add("in-view"));
+    return;
+  }
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach((entry) => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add("in-view");
+        observer.unobserve(entry.target);
+      }
+    });
+  }, { rootMargin: "0px 0px -8% 0px", threshold: 0.12 });
+  targets.forEach((el) => observer.observe(el));
 }
 
 function initMobileNav() {
