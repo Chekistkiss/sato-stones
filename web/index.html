@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sato Stones</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- OPENING ANIMATION -->
+  <div id="intro" class="intro">
+    <div class="intro-circle"></div>
+    <span class="intro-text">SATO STONES</span>
+  </div>
+
+  <!-- GRAIN OVERLAY -->
+  <div class="grain" aria-hidden="true"></div>
+
+  <!-- PAGE CONTENT -->
+  <div id="pageContent" class="page-content">
+    <div id="connectivityBanner" class="connectivity-banner hidden" role="alert">
+      <div class="connectivity-banner-content">
+        <strong>Network access issue.</strong>
+        <span id="connectivityBannerText">
+          Your region or ISP may block required web3 endpoints. Try VPN, disable strict ad blockers, then refresh.
+        </span>
+      </div>
+      <button id="connectivityBannerClose" class="connectivity-banner-close" type="button" aria-label="Close banner">Dismiss</button>
+    </div>
+
+    <!-- NAV -->
+    <nav id="nav">
+      <a href="#hero" class="nav-logo">Sato Stones</a>
+      <div class="nav-links">
+        <a href="#stats">Stats</a>
+        <a href="#vault">Vault</a>
+        <a href="#lottery">Lottery</a>
+        <a href="#mint">Mint</a>
+        <a href="#seasons">Seasons</a>
+        <button id="navConnectBtn" class="nav-connect" onclick="connectWallet()">Connect Wallet</button>
+      </div>
+    </nav>
+
+    <!-- HERO -->
+    <section id="hero" class="hero">
+      <div class="hero-inner fade-section">
+        <span class="label appear-up">Vault Lock</span>
+        <h1 class="hero-heading appear-up delay1">Lock SATO.<span class="hero-heading-accent">Earn the season.</span></h1>
+        <p class="hero-sub appear-up delay2">2,100 Stones. Choose your deposit (100–10,000 SATO) and lock 15/30/60 days. Early exit feeds the community pool. No curve sell on mint.</p>
+        <div class="burn-counter appear-up delay3">
+          <span id="heroBurnCount" class="burn-value">0</span>
+          <span class="burn-counter-label">Stones Minted</span>
+        </div>
+        <p class="hero-secondary-burn appear-up delay3">Genesis claimed: <span id="heroBurnSecondary">0</span> / 21</p>
+      </div>
+    </section>
+
+    <!-- LIVE STATS -->
+    <section id="stats" class="section">
+      <div class="section-inner fade-section">
+        <div class="section-label">
+          <span class="live-dot"></span>
+          <span>Live</span>
+        </div>
+        <div class="stats-grid stagger-group">
+          <div class="stat-card stagger-item">
+            <span class="stat-value" id="statMinted">0 / 2,100</span>
+            <span class="stat-label">Minted</span>
+          </div>
+          <div class="stat-card stagger-item">
+            <span class="stat-value" id="statTier">Season 0</span>
+            <span class="stat-label">Season</span>
+          </div>
+          <div class="stat-card stagger-item">
+            <span class="stat-value" id="statPrice">100–10k SATO</span>
+            <span class="stat-label">Deposit range</span>
+          </div>
+          <div class="stat-card stagger-item">
+            <span class="stat-value" id="statPrize">0 SATO</span>
+            <span class="stat-label">Prize pool</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- VAULT -->
+    <section id="vault" class="section">
+      <div class="section-inner fade-section">
+        <div class="section-label"><span>Vault</span></div>
+        <p class="lottery-desc">Choose 100–10,000 SATO and lock 15, 30, or 60 days. A 2% mint fee feeds the season pool. Early exit applies a progressive penalty (pool / burn / prize / dev). After lock, redeem 100% of your SATO and keep the NFT.</p>
+        <div class="tiers-grid stagger-group">
+          <div class="tier-card tier-genesis stagger-item">
+            <div class="tier-name">Genesis</div>
+            <div class="tier-range">First 21 mints</div>
+            <div class="tier-price">≥ 500 SATO</div>
+            <div class="tier-supply">1.2× weight</div>
+          </div>
+          <div class="tier-card tier-early stagger-item">
+            <div class="tier-name">Lock 15d</div>
+            <div class="tier-range">Higher penalty early</div>
+            <div class="tier-price">1.0× weight</div>
+            <div class="tier-supply">Min 100 SATO</div>
+          </div>
+          <div class="tier-card tier-core stagger-item">
+            <div class="tier-name">Lock 30d</div>
+            <div class="tier-range">1.8× multiplier</div>
+            <div class="tier-price">Balanced</div>
+            <div class="tier-supply">Season rewards</div>
+          </div>
+          <div class="tier-card tier-final stagger-item">
+            <div class="tier-name">Lock 60d</div>
+            <div class="tier-range">3.0× multiplier</div>
+            <div class="tier-price">Lower penalty</div>
+            <div class="tier-supply">Max weight</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- LOTTERY -->
+    <section id="lottery" class="section">
+      <div class="section-inner fade-section">
+        <div class="section-label"><span>Lottery</span></div>
+        <p class="lottery-desc">15% of early-exit penalties fund the prize pool. When the pool reaches the minimum, anyone can request a Chainlink VRF draw; weighted tickets are active locked stones.</p>
+        <div id="lotteryHistory" class="lottery-history">
+          <p class="placeholder-msg">Prize pool shown in Live stats. Draw history UI coming soon.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- MINT -->
+    <section id="mint" class="section">
+      <div class="section-inner fade-section">
+        <div class="section-label"><span>Mint</span></div>
+        <div id="mintPausedBanner" class="mint-paused hidden">
+          Minting temporarily paused for security maintenance. Follow @SatoStones for updates.
+        </div>
+        <div class="mint-box" id="mintBox">
+          <div id="mintDisconnected">
+            <p class="mint-prompt">Connect your wallet to mint a Sato Stone.</p>
+            <button class="btn-primary-pill" onclick="connectWallet()">Connect Wallet</button>
+          </div>
+          <div id="mintConnected" class="hidden">
+            <div class="mint-address">Connected: <span id="mintAddr">0x000...0000</span></div>
+            <p class="mint-summary" id="mintSummary">Deposit & lock · Genesis slots left</p>
+            <p class="mint-info">Next stone <strong id="mintStoneNum">#1</strong> · Balance: <strong id="mintSatoBal">—</strong> SATO</p>
+            <div class="mint-qty">
+              <label for="mintGross">SATO deposit (gross)</label>
+              <input type="number" id="mintGross" min="100" max="10000" value="500" oninput="updateMintUI()">
+            </div>
+            <div class="mint-qty">
+              <label for="mintLock">Lock period</label>
+              <select id="mintLock" onchange="updateMintUI()">
+                <option value="0">15 days</option>
+                <option value="1">30 days</option>
+                <option value="2" selected>60 days</option>
+              </select>
+            </div>
+            <p class="mint-info">Genesis: first 21 mints with ≥500 SATO (not token #1–21). 2% mint fee → season pool.</p>
+            <div class="mint-actions">
+              <button id="approveBtn" class="btn-outline-pill" onclick="approveSato()">Approve SATO</button>
+              <button id="mintBtn" class="btn-primary-pill" onclick="mintStones()">Mint Vault Stone</button>
+            </div>
+            <div id="txStatus" class="tx-status hidden" role="status" aria-live="polite">
+              <div id="txStatusTitle" class="tx-status-title"></div>
+              <div id="txStatusMessage" class="tx-status-message"></div>
+              <div id="txStatusHint" class="tx-status-hint hidden"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- YOUR STONES -->
+    <section id="stones" class="section">
+      <div class="section-inner fade-section">
+        <div class="section-label"><span>Your Stones</span></div>
+        <div id="stonesDisconnected" class="placeholder-msg">Connect wallet to view your stones.</div>
+        <div id="stonesGrid" class="stones-grid hidden"></div>
+      </div>
+    </section>
+
+    <!-- SEASONS -->
+    <section id="seasons" class="section">
+      <div class="section-inner fade-section">
+        <div class="section-label"><span>Seasons</span></div>
+        <p id="seasonStatus" class="placeholder-msg">Connect wallet to finalize seasons and claim rewards.</p>
+        <div class="mint-actions">
+          <button id="finalizeSeasonBtn" class="btn-outline-pill hidden" onclick="finalizePreviousSeason()">Finalize previous season</button>
+          <button id="recoverPrizeBtn" class="btn-outline-pill hidden" onclick="recoverPrizeDraw()">Recover timed-out prize draw</button>
+        </div>
+        <div id="seasonClaims" class="stones-grid hidden"></div>
+      </div>
+    </section>
+
+    <!-- FOOTER -->
+    <footer class="footer">
+      <div class="footer-sep"></div>
+      <p class="footer-credit">Built by the SATO community</p>
+      <div class="footer-links">
+        <a id="contractLink" href="https://etherscan.io" target="_blank" rel="noopener">Contract</a>
+        <a id="tokenLink" href="https://etherscan.io" target="_blank" rel="noopener">Token</a>
+        <a href="https://sat0.org" target="_blank" rel="noopener">sat0.org</a>
+      </div>
+      <p class="footer-copy">&copy; 2026 Sato Stones. All rights reserved.</p>
+    </footer>
+
+  </div>
+
+  <script src="config.js"></script>
+  <script>
+    setTimeout(function () {
+      var intro = document.getElementById("intro");
+      if (intro) intro.classList.add("done");
+    }, 2600);
+  </script>
+  <script>
+    window.__loadEthersFallback = function () {
+      if (window.ethers) return;
+      const s = document.createElement("script");
+      s.src = "https://unpkg.com/ethers@6.7.0/dist/ethers.umd.min.js";
+      s.crossOrigin = "anonymous";
+      s.referrerPolicy = "no-referrer";
+      document.head.appendChild(s);
+    };
+  </script>
+  <script
+    id="ethersPrimary"
+    src="https://cdn.jsdelivr.net/npm/ethers@6.7.0/dist/ethers.umd.min.js"
+    crossorigin="anonymous"
+    referrerpolicy="no-referrer"
+    onerror="window.__loadEthersFallback && window.__loadEthersFallback()"
+  ></script>
+  <script src="app-vault.js"></script>
+</body>
+</html>

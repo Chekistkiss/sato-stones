@@ -1,0 +1,28 @@
+{
+  "name": "sato-stones",
+  "version": "1.0.0",
+  "description": "Sato Stones Vault — 2100 NFTs locking SATO with seasons, penalties, and Genesis.",
+  "main": "index.js",
+  "directories": {
+    "lib": "lib",
+    "test": "test"
+  },
+  "scripts": {
+    "compile:vault": "node script/compile-vault.js",
+    "vault:dry-run": "node script/deploy-vault-e2e.js --dry-run",
+    "vault:deploy:sepolia": "node script/deploy-vault-e2e.js",
+    "test": "forge test -vv --match-contract SatoStonesVault"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "dotenv": "^17.4.2",
+    "ethers": "^6.16.0",
+    "solc": "^0.8.35"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.0"
+  }
+}

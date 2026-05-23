@@ -1,0 +1,14 @@
+artifacts/
+cache/
+lib/
+node_modules/
+out/
+script/
+src/
+test/
+_specs/
+VAULT_PROGRESS.md
+foundry.toml
+remappings.txt
+.env
+.env.*
