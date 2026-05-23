@@ -34,20 +34,43 @@ _specs/        Specifications
 ### Prerequisites
 
 - Node.js 18+ for compile/deploy scripts
-- [Foundry](https://book.getfoundry.sh/) optional (for `forge test`)
+- [Foundry](https://book.getfoundry.sh/) for contract tests and remappings
 
-Dependencies under `lib/`: OpenZeppelin, ERC721A, forge-std.
+Dependencies under `lib/` are tracked as git submodules: OpenZeppelin, ERC721A, forge-std.
 
-### Compile & Sepolia deploy
+Clone with dependencies:
+
+```bash
+git clone --recurse-submodules https://github.com/Chekistkiss/sato-stones.git
+```
+
+If you already cloned without submodules:
+
+```bash
+git submodule update --init --recursive
+```
+
+### Compile & Sepolia deploy with mocks
 
 ```bash
 npm install
 npm run compile:vault
 npm run vault:dry-run
-npm run vault:deploy:sepolia   # .env.sepolia: SEPOLIA_RPC_URL, DEPLOYER_PRIVATE_KEY
+npm run vault:deploy:sepolia:mocks   # .env.sepolia: SEPOLIA_RPC_URL, DEPLOYER_PRIVATE_KEY
 ```
 
-Writes `web/config.js` with deployed addresses.
+Writes `web/config.js` with deployed addresses. The committed `web/config.js` is public Sepolia config so GitHub/Vercel deploys work without local-only files.
+
+### Mainnet deploy
+
+Mainnet deploy is intentionally separate and never deploys mocks:
+
+```bash
+npm run vault:deploy:mainnet:dry-run
+npm run vault:deploy:mainnet
+```
+
+Required `.env.mainnet`: `MAINNET_RPC_URL`, `MAINNET_PRIVATE_KEY` or `DEPLOYER_PRIVATE_KEY`, `PRIZE_MIN_SATO`, `VRF_COORDINATOR`, `VRF_KEY_HASH`, `VRF_SUBSCRIPTION_ID`. Optional: `SATO_TOKEN_ADDRESS` (defaults to mainnet SATO), `DEV_ADDRESS`, `PRIZE_DRAW_INTERVAL_SECONDS`, `VRF_CONFIRMATIONS`, `VRF_CALLBACK_GAS_LIMIT`, `BASE_URI`.
 
 ### Foundry tests
 
@@ -61,7 +84,7 @@ forge test -vv --match-contract SatoStonesVault
 npx serve web
 ```
 
-Copy `web/config.example.js` → `web/config.js` or use output from deploy script.
+For local overrides, copy `web/config.example.js` to `web/config.local.js` and load it manually during local testing, or rerun the Sepolia deploy script to rewrite `web/config.js`.
 
 ## Deploy on Vercel
 

@@ -4,9 +4,5 @@ broadcast/
 node_modules/
 .env
 .env.*
-
-# External Foundry dependencies; reinstall with `forge install` after cloning.
-lib/
 .vercel
 .env*.local
-web/config.js

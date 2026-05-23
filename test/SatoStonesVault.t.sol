@@ -13,6 +13,7 @@ contract SatoStonesVaultTest is Test {
 
     address public dev = address(0xD3);
     address public user = address(0xB0B);
+    address public buyer = address(0xB0C);
 
     function setUp() public {
         sato = new MockERC20();
@@ -140,6 +141,64 @@ contract SatoStonesVaultTest is Test {
 
         vm.expectRevert(bytes("fulfill failed"));
         vrf.fulfill(requestId, 7);
+    }
+
+    function test_PrizeDrawAssignsAndClaimPrize() public {
+        vm.prank(user);
+        vault.mint(1000 ether, SatoStonesVault.LockDays.Fifteen);
+        vm.prank(user);
+        vault.mint(1000 ether, SatoStonesVault.LockDays.Sixty);
+        vm.prank(user);
+        vault.earlyExit(1);
+
+        vm.warp(block.timestamp + 31 days);
+        uint256 requestId = vault.requestPrizeDraw();
+        uint256 prize = vault.pendingDrawPrize();
+
+        vrf.fulfill(requestId, 0);
+
+        assertEq(vault.pendingPrize(user), prize);
+        assertEq(vault.pendingDrawPrize(), 0);
+        assertEq(vault.pendingDrawRequestId(), 0);
+
+        uint256 before = sato.balanceOf(user);
+        vm.prank(user);
+        vault.claimPrize();
+        assertEq(sato.balanceOf(user) - before, prize);
+        assertEq(vault.pendingPrize(user), 0);
+    }
+
+    function test_PrizeDrawUsesRequestTimeOwnerSnapshot() public {
+        vm.prank(user);
+        vault.mint(1000 ether, SatoStonesVault.LockDays.Fifteen);
+        vm.prank(user);
+        vault.mint(1000 ether, SatoStonesVault.LockDays.Sixty);
+        vm.prank(user);
+        vault.earlyExit(1);
+
+        vm.warp(block.timestamp + 31 days);
+        uint256 requestId = vault.requestPrizeDraw();
+        uint256 prize = vault.pendingDrawPrize();
+
+        vm.prank(user);
+        vault.transferFrom(user, buyer, 2);
+
+        vrf.fulfill(requestId, 0);
+
+        assertEq(vault.ownerOf(2), buyer);
+        assertEq(vault.pendingPrize(user), prize);
+        assertEq(vault.pendingPrize(buyer), 0);
+    }
+
+    function test_CannotRequestDrawWithoutEligibleTickets() public {
+        vm.prank(user);
+        vault.mint(1000 ether, SatoStonesVault.LockDays.Fifteen);
+        vm.prank(user);
+        vault.earlyExit(1);
+
+        vm.warp(block.timestamp + 31 days);
+        vm.expectRevert(SatoStonesVault.NoEligibleTickets.selector);
+        vault.requestPrizeDraw();
     }
 
     function test_EarlyExitPenaltyCeilsPartialDay() public {

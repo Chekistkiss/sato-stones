@@ -9,8 +9,11 @@
   },
   "scripts": {
     "compile:vault": "node script/compile-vault.js",
-    "vault:dry-run": "node script/deploy-vault-e2e.js --dry-run",
-    "vault:deploy:sepolia": "node script/deploy-vault-e2e.js",
+    "vault:dry-run": "node script/deploy-sepolia-mocks.js --dry-run",
+    "vault:deploy:sepolia:mocks": "node script/deploy-sepolia-mocks.js",
+    "vault:deploy:sepolia": "node script/deploy-sepolia-mocks.js",
+    "vault:deploy:mainnet:dry-run": "node script/deploy-mainnet.js --dry-run",
+    "vault:deploy:mainnet": "node script/deploy-mainnet.js --confirm-mainnet",
     "test": "forge test -vv --match-contract SatoStonesVault"
   },
   "keywords": [],

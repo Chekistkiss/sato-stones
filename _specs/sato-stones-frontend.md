@@ -32,6 +32,8 @@
 
 Loaded via `window.SATO_STONES_CONFIG` before `app-vault.js`.
 
+`web/config.js` is committed for public Sepolia deployments so GitHub/Vercel builds are reproducible. It must contain only public addresses and public RPC URLs. Secrets and private RPC keys stay in `.env*` files and must never be referenced from static frontend config.
+
 ## Error UX
 
 `#txStatus`: title, message, optional hint. Decode custom errors via the vault ABI where revert data is available; map common reverts (`MintedOut`, `DepositTooLow`, `LockNotEnded`, `DrawPending`, `NoEligibleTickets`, user reject).

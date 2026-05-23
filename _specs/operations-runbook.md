@@ -6,6 +6,11 @@ Permissionless on-chain actions and optional automation for seasons and lottery 
 
 ## Keeper jobs (optional bots)
 
+## Deploy paths
+
+- Sepolia MVP uses `npm run vault:deploy:sepolia:mocks`; it deploys Mock SATO, Mock VRF, and Vault, then writes public `web/config.js`.
+- Mainnet uses `npm run vault:deploy:mainnet`; it deploys only `SatoStonesVault` with real SATO and real Chainlink VRF v2.5 parameters from `.env.mainnet`, and refuses to run without `--confirm-mainnet` through the package script.
+
 ### Season finalize (after each 15-day season ends)
 
 1. Read `currentSeasonId()` and previous `seasonId = current - 1` (if season > 0).

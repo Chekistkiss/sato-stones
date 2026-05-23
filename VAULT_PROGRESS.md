@@ -81,3 +81,6 @@ npx serve web
 | 2026-05-23 | Fixed review findings: all-season UI scan, Genesis preview, VRF mapping cleanup, `.vercelignore`; Sepolia/Vercel redeploy |
 | 2026-05-23 | Fixed claim UI to use `snapshotOwner` instead of current NFT owner |
 | 2026-05-23 | Redeployed Sepolia after audit fixes: VRF v2.5 callback path, draw snapshot, ceil partial-day penalty, frontend preflight/lottery UX |
+| 2026-05-23 | Repo reproducibility: Foundry deps tracked as submodules; public Sepolia `web/config.js` committed for GitHub/Vercel deploys |
+| 2026-05-23 | Split deploy scripts: Sepolia mocks are explicit; mainnet deploy has real SATO/VRF envs and confirmation flag |
+| 2026-05-23 | Expanded lottery tests: successful draw/claim, request-time owner snapshot, and no-eligible-ticket revert |
