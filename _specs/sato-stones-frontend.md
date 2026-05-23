@@ -4,15 +4,18 @@
 
 ## UX flow
 
-1. Connect wallet → SATO balance, `totalMinted / 2100`, season id, prize pool.
-2. Mint: **gross SATO** (100–10k/current dynamic cap), **lock** (15 / 30 / 60 days); show Genesis slots left, next token id, preview `peakSato`, weight, rarity, and wallet/balance/allowance preflight.
-3. Approve SATO → `mint(gross, lockDays)`; disable mint until allowance, balance, wallet cap, min deposit, and dynamic max-gross checks pass.
-4. Per-NFT: `earlyExit`, `redeem` (after `lockEnd`); show lock countdown. `earlyExit` must confirm NFT burn and estimated penalty/return before submitting.
-5. Seasons: finalize any ended unfinalized season; show claims where connected wallet is `snapshotOwner`, even if the NFT was later sold.
-6. Copy: 2% mint fee → pool; Genesis = first 21 mints with ≥500 SATO; no curve sell on mint.
-7. Warning: last **1 hour** of each season — transfers blocked.
-8. Lottery ops: request draw when `canRequestPrizeDraw()` is true; show pending VRF status, 1-day timeout recovery, and `claimPrize()` when `pendingPrize(user) > 0`.
-9. Wallet lifecycle: handle `accountsChanged` and `chainChanged` by clearing connected state and prompting reconnect. Network switch should use `wallet_addEthereumChain` fallback for missing chains.
+1. Home stays app-focused: short hero, live stats, protocol summary, mint, user Stones, seasons/rewards, lottery status, and a short whitepaper CTA.
+2. Full protocol whitepaper lives on `/whitepaper/`, not in the main app scroll.
+3. Connect wallet → SATO balance, `totalMinted / 2100`, season id, prize pool.
+4. Mint: **gross SATO** (100–10k/current dynamic cap), **lock** (15 / 30 / 60 days); show Genesis slots left, next token id, preview `peakSato`, weight, rarity, and wallet/balance/allowance preflight.
+5. Approve SATO → `mint(gross, lockDays)`; disable mint until allowance, balance, wallet cap, min deposit, and dynamic max-gross checks pass.
+6. Per-NFT: `earlyExit`, `redeem` (after `lockEnd`); show lock countdown. `earlyExit` must confirm NFT burn and estimated penalty/return before submitting.
+7. Seasons: finalize any ended unfinalized season; show claims where connected wallet is `snapshotOwner`, even if the NFT was later sold.
+8. Copy: 2% mint fee → pool; Genesis = first 21 mints with ≥500 SATO; no curve sell on mint.
+9. Warning: last **1 hour** of each season — transfers blocked.
+10. Lottery ops: request draw when `canRequestPrizeDraw()` is true; show pending VRF status, 1-day timeout recovery, and `claimPrize()` when `pendingPrize(user) > 0`.
+11. Wallet lifecycle: handle `accountsChanged` and `chainChanged` by clearing connected state and prompting reconnect. Network switch should use `wallet_addEthereumChain` fallback for missing chains.
+12. Mobile nav collapses into a menu so anchor links do not wrap over the hero/app content.
 
 ## Stack
 

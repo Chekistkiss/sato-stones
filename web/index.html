@@ -35,12 +35,13 @@
     <!-- NAV -->
     <nav id="nav">
       <a href="#hero" class="nav-logo">Sato Stones</a>
-      <div class="nav-links">
-        <a href="#stats">Stats</a>
-        <a href="#vault">Vault</a>
-        <a href="#lottery">Lottery</a>
+      <button id="navMenuBtn" class="nav-menu-toggle" type="button" aria-expanded="false" aria-controls="navLinks">Menu</button>
+      <div class="nav-links" id="navLinks">
+        <a href="#vault">Protocol</a>
         <a href="#mint">Mint</a>
-        <a href="#seasons">Seasons</a>
+        <a href="#stones">Stones</a>
+        <a href="#seasons">Rewards</a>
+        <a href="/whitepaper/">Whitepaper</a>
         <button id="navConnectBtn" class="nav-connect" onclick="connectWallet()">Connect Wallet</button>
       </div>
     </nav>
@@ -197,6 +198,31 @@
       </div>
     </section>
 
+    <!-- WHITEPAPER TEASER -->
+    <section id="whitepaper" class="section whitepaper-teaser-section">
+      <div class="section-inner fade-section">
+        <div class="section-label"><span>Whitepaper</span></div>
+        <div class="whitepaper-teaser">
+          <div>
+            <span class="label">Protocol mechanics</span>
+            <h2>One readable document for the vault, seasons, lottery, and Heat model.</h2>
+            <p>
+              The full whitepaper now lives on its own page so the app stays focused on minting,
+              managing Stones, and claiming rewards. Read the mechanics end-to-end when you want
+              the deeper protocol view.
+            </p>
+          </div>
+          <div class="whitepaper-teaser-cards">
+            <div><strong>Vault lock</strong><span>Deposit SATO, choose 15/30/60 days, redeem after lock.</span></div>
+            <div><strong>Season pool</strong><span>2% mint fee and early-exit penalties feed 15-day seasons.</span></div>
+            <div><strong>VRF lottery</strong><span>Penalty-funded prize draws use request-time locked-Stone snapshots.</span></div>
+            <div><strong>Heat V1</strong><span>Off-chain retention score for future season perks.</span></div>
+          </div>
+          <a class="btn-primary-pill whitepaper-cta" href="/whitepaper/">Read full whitepaper</a>
+        </div>
+      </div>
+    </section>
+
     <!-- FOOTER -->
     <footer class="footer">
       <div class="footer-sep"></div>
@@ -204,6 +230,7 @@
       <div class="footer-links">
         <a id="contractLink" href="https://etherscan.io" target="_blank" rel="noopener">Contract</a>
         <a id="tokenLink" href="https://etherscan.io" target="_blank" rel="noopener">Token</a>
+        <a href="/whitepaper/">Whitepaper</a>
         <a href="https://sat0.org" target="_blank" rel="noopener">sat0.org</a>
       </div>
       <p class="footer-copy">&copy; 2026 Sato Stones. All rights reserved.</p>

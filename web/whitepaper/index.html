@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sato Stones Whitepaper</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+  <div class="grain" aria-hidden="true"></div>
+  <div id="pageContent" class="page-content">
+    <nav id="nav">
+      <a href="/" class="nav-logo">Sato Stones</a>
+      <button id="navMenuBtn" class="nav-menu-toggle" type="button" aria-expanded="false" aria-controls="navLinks">Menu</button>
+      <div class="nav-links" id="navLinks">
+        <a href="/">Home</a>
+        <a href="/#mint">Mint</a>
+        <a href="/#stones">Stones</a>
+        <a href="/#seasons">Seasons</a>
+        <a href="/whitepaper/">Whitepaper</a>
+      </div>
+    </nav>
+    <!-- WHITEPAPER -->
+    <section id="whitepaper" class="section whitepaper-section whitepaper-page-section">
+      <div class="section-inner fade-section">
+        <div class="section-label"><span>Whitepaper</span></div>
+        <div class="whitepaper-shell">
+          <aside class="whitepaper-toc" aria-label="Whitepaper table of contents">
+            <span class="whitepaper-kicker">Sato Stones v1.3</span>
+            <a href="/">Back to app</a>
+            <a href="#wp-overview">Overview</a>
+            <a href="#wp-parameters">Parameters</a>
+            <a href="#wp-mint">Mint & escrow</a>
+            <a href="#wp-weight">Weight & rarity</a>
+            <a href="#wp-exit">Exit paths</a>
+            <a href="#wp-seasons">Seasons</a>
+            <a href="#wp-lottery">Lottery</a>
+            <a href="#wp-market">Market</a>
+            <a href="#wp-utility">Utility V1</a>
+            <a href="#wp-risk">Risks</a>
+          </aside>
+
+          <article class="whitepaper-doc">
+            <header class="whitepaper-hero">
+              <span class="label">Vault NFT whitepaper</span>
+              <h2>SATO locked as Stones, seasons, scarcity, and permissionless rewards.</h2>
+              <p>
+                Sato Stones is a 2,100-supply ERC-721A vault collection. Each Stone locks SATO
+                for a chosen period, stores the vault state on-chain, and uses that locked position
+                for seasonal pool distribution and prize-draw eligibility.
+              </p>
+              <div class="whitepaper-badges">
+                <span>No bonding-curve mint</span>
+                <span>2,100 mints ever</span>
+                <span>15 / 30 / 60 day locks</span>
+                <span>100% redeem after lock</span>
+              </div>
+            </header>
+
+            <section id="wp-overview" class="whitepaper-block">
+              <h3>1. Overview</h3>
+              <p>
+                The core mechanic is simple: a minter deposits SATO, pays a 2% mint fee into the
+                current season pool, and receives one NFT vault. The remaining SATO becomes
+                <strong>peakSato</strong>, the escrowed amount tracked by the Stone.
+              </p>
+              <p>
+                SATO is not sold through a bonding curve during mint. The protocol is designed
+                around locked SATO, fixed supply, seasonal redistribution, and optional early-exit
+                penalties. After the selected lock ends, the owner can redeem all remaining locked
+                SATO and keep the NFT as a historical artifact.
+              </p>
+            </section>
+
+            <section id="wp-parameters" class="whitepaper-block">
+              <h3>2. Canonical Parameters</h3>
+              <div class="whitepaper-grid">
+                <div><strong>Max supply</strong><span>2,100 total mints ever. Burns do not reopen supply.</span></div>
+                <div><strong>Mint size</strong><span>100 SATO minimum, capped by min(10,000 SATO, 0.1% of SATO total supply).</span></div>
+                <div><strong>Wallet cap</strong><span>10 lifetime mints per wallet.</span></div>
+                <div><strong>Lock periods</strong><span>Only 15, 30, or 60 days.</span></div>
+                <div><strong>Mint fee</strong><span>2% of gross deposit to the current season pool.</span></div>
+                <div><strong>Genesis</strong><span>First 21 qualifying mints with gross deposit ≥ 500 SATO.</span></div>
+                <div><strong>Seasons</strong><span>15-day global seasons from deploy time.</span></div>
+                <div><strong>Transfer lockout</strong><span>Transfers are blocked during the last hour before each season ends.</span></div>
+              </div>
+            </section>
+
+            <section id="wp-mint" class="whitepaper-block">
+              <h3>3. Mint, Intake, and Escrow</h3>
+              <p>
+                Minting is single-quantity. The contract measures received SATO by balance delta,
+                so fee-on-transfer behavior is tolerated as long as received SATO is not below the
+                expected escrow threshold.
+              </p>
+              <div class="formula-card">
+                <code>mintFee = received × 200 / 10,000</code>
+                <code>peakSato = received - mintFee</code>
+                <code>lockEnd = block.timestamp + selectedLockDays</code>
+              </div>
+              <p>
+                The vault stores <strong>peakSato</strong>, <strong>satoLocked</strong>,
+                <strong>lockEnd</strong>, <strong>weightAtMint</strong>, lock duration, rarity,
+                Genesis status, and redemption state. A Stone cannot be re-locked after redeem.
+              </p>
+            </section>
+
+            <section id="wp-weight" class="whitepaper-block">
+              <h3>4. Weight, Rarity, and Genesis</h3>
+              <p>
+                Weight is fixed at mint and does not change later. It is used for season rewards
+                and lottery tickets while the vault remains active and locked.
+              </p>
+              <div class="formula-card">
+                <code>weightAtMint = sqrt(peakSato) × lockMultiplier × genesisMultiplier</code>
+              </div>
+              <div class="whitepaper-table">
+                <div><span>Lock 15d</span><strong>1.0× weight</strong><em>30% base early-exit penalty</em></div>
+                <div><span>Lock 30d</span><strong>1.8× weight</strong><em>25% base early-exit penalty</em></div>
+                <div><span>Lock 60d</span><strong>3.0× weight</strong><em>20% base early-exit penalty</em></div>
+              </div>
+              <p>
+                Genesis is not tied to token ID. It is FIFO among qualifying mints: gross deposit
+                ≥ 500 SATO and fewer than 21 Genesis Stones minted. Genesis adds a 1.2× weight
+                multiplier and stores a permanent <strong>genesisRank</strong>.
+              </p>
+              <div class="whitepaper-table rarity-table">
+                <div><span>Common</span><strong>0-14 weight</strong></div>
+                <div><span>Uncommon</span><strong>15-49 weight</strong></div>
+                <div><span>Rare</span><strong>50-149 weight</strong></div>
+                <div><span>Mythic</span><strong>150+ weight</strong></div>
+              </div>
+            </section>
+
+            <section id="wp-exit" class="whitepaper-block">
+              <h3>5. Redeem and Early Exit</h3>
+              <p>
+                Once the lock has ended, the owner can call <strong>redeem</strong> and receive
+                100% of the remaining locked SATO. The NFT is kept, but the vault becomes empty
+                and is no longer eligible for seasons or lottery.
+              </p>
+              <p>
+                Before lock end, the owner can call <strong>earlyExit</strong>. This burns the NFT,
+                returns locked SATO minus a progressive penalty, and does not reopen a mint slot.
+                Partial remaining days are rounded up, so exiting in the final partial day still
+                pays one day of penalty.
+              </p>
+              <div class="formula-card">
+                <code>daysRemaining = ceil((lockEnd - now) / 1 day)</code>
+                <code>penaltyBps = basePenaltyBps × daysRemaining / lockDays</code>
+                <code>penaltySato = peakSato × penaltyBps / 10,000</code>
+              </div>
+              <div class="split-ledger">
+                <div><strong>48%</strong><span>Season pool</span></div>
+                <div><strong>33%</strong><span>Burn address</span></div>
+                <div><strong>15%</strong><span>Prize fund</span></div>
+                <div><strong>2%</strong><span>Dev balance</span></div>
+                <div><strong>2%</strong><span>Rounding/dust to pool</span></div>
+              </div>
+            </section>
+
+            <section id="wp-seasons" class="whitepaper-block">
+              <h3>6. Seasons and Community Pool</h3>
+              <p>
+                Seasons are global 15-day windows. Mint fees and the pool share of early-exit
+                penalties accumulate into the active season pool. After a season ends, anyone can
+                finalize it.
+              </p>
+              <p>
+                Finalization scans active locked Stones, records <strong>snapshotOwner</strong>
+                for each eligible token, sums total weight, computes claim amounts, and marks the
+                season finalized. Claims belong to the snapshot owner, even if the NFT is sold
+                later.
+              </p>
+              <div class="formula-card">
+                <code>rawClaim = distributable × tokenWeight / totalSeasonWeight</code>
+                <code>walletCap = distributable × 10%</code>
+                <code>if walletRaw &gt; walletCap: paid = rawClaim × walletCap / walletRaw</code>
+              </div>
+              <p>
+                Unallocated SATO from zero-weight seasons, rounding, or wallet-cap scaling rolls
+                into <strong>undistributedCarry</strong> for the next season.
+              </p>
+            </section>
+
+            <section id="wp-lottery" class="whitepaper-block">
+              <h3>7. Lottery and VRF Prize Draws</h3>
+              <p>
+                The prize fund receives 15% of each early-exit penalty. When the fund reaches the
+                configured minimum and the draw interval has elapsed, anyone can request a prize
+                draw.
+              </p>
+              <p>
+                Draw tickets are snapshotted at request time: active locked Stones contribute
+                <strong>weightAtMint</strong>. The winner is selected from that frozen ticket set
+                after Chainlink VRF v2.5 returns randomness. This prevents post-request transfers
+                or exits from changing the winner universe.
+              </p>
+              <div class="whitepaper-grid compact">
+                <div><strong>Request</strong><span>`requestPrizeDraw()` snapshots tickets and asks VRF for randomness.</span></div>
+                <div><strong>Assign</strong><span>`rawFulfillRandomWords()` assigns the prize to the snapshotted owner.</span></div>
+                <div><strong>Claim</strong><span>Winner pulls SATO through `claimPrize()`.</span></div>
+                <div><strong>Recover</strong><span>If VRF is stuck for 1 day, anyone can recover the pending prize back to the fund.</span></div>
+              </div>
+            </section>
+
+            <section id="wp-market" class="whitepaper-block">
+              <h3>8. Secondary Market Behavior</h3>
+              <p>
+                A buyer inherits the Stone state: lock end, escrow, redeem rights, early-exit
+                rights, weight, rarity, and Genesis metadata. Season claims that were already
+                finalized stay with the recorded snapshot owner, so pending claim value should be
+                priced into secondary sales.
+              </p>
+              <p>
+                During the final hour before a season ends, transfers revert to reduce last-minute
+                reward sniping. Outside that lockout, active vault NFTs are transferable.
+              </p>
+            </section>
+
+            <section id="wp-utility" class="whitepaper-block">
+              <h3>9. Utility V1 and Heat</h3>
+              <p>
+                Utility V1 keeps the core mint, lock, pool, and lottery mechanics unchanged.
+                Heat is an off-chain, reproducible accounting layer derived from events and
+                ownership snapshots.
+              </p>
+              <p>
+                The initial policy is <strong>1 Heat per day per eligible Stone</strong>. Heat is
+                intended for next-season perks such as allowlist tier, early mint window, discount
+                bps, and discounted mint cap. Heat does not affect on-chain lottery weighting in V1.
+              </p>
+              <div class="whitepaper-table rarity-table">
+                <div><span>Bronze</span><strong>5-14 Heat</strong></div>
+                <div><span>Silver</span><strong>15-29 Heat</strong></div>
+                <div><span>Gold</span><strong>30-44 Heat</strong></div>
+                <div><span>Obsidian</span><strong>45+ Heat</strong></div>
+              </div>
+            </section>
+
+            <section id="wp-ops" class="whitepaper-block">
+              <h3>10. Operations</h3>
+              <p>
+                The system is permissionless for normal operations: anyone can finalize ended
+                seasons, request eligible prize draws, recover timed-out draws, claim season
+                rewards, claim assigned prizes, or trigger dev withdrawal to the immutable dev
+                address.
+              </p>
+              <p>
+                Mainnet deploy uses real SATO and Chainlink VRF parameters. Sepolia deploy uses
+                mocks for testing. The contract has no pause, no upgrade admin, and no privileged
+                reward distributor.
+              </p>
+            </section>
+
+            <section id="wp-risk" class="whitepaper-block">
+              <h3>11. Risks and Mitigations</h3>
+              <div class="risk-list">
+                <div><strong>Transfer gaming</strong><span>Mitigated by last-hour season transfer lockout and finalize-time snapshot owners.</span></div>
+                <div><strong>Coordinated early exit</strong><span>Exit burns the NFT and removes future weight; per-wallet season cap limits concentration.</span></div>
+                <div><strong>Sybil splitting</strong><span>Sqrt weighting, max 10 mints per wallet, and 10% wallet claim cap reduce linear dominance.</span></div>
+                <div><strong>Prize starvation</strong><span>Prize draws wait until fixed SATO minimum and interval conditions are met.</span></div>
+                <div><strong>VRF interruption</strong><span>Timed-out draw recovery returns pending SATO to the prize fund.</span></div>
+                <div><strong>Mainnet operations</strong><span>VRF subscription funding and keeper monitoring are external operational responsibilities.</span></div>
+              </div>
+              <p class="whitepaper-disclaimer">
+                This whitepaper describes protocol mechanics and current implementation intent. It
+                is not financial advice, does not promise profit, and does not remove smart-contract
+                or market risk.
+              </p>
+            </section>
+          </article>
+        </div>
+      </div>
+    </section>
+    <footer class="footer">
+      <div class="footer-sep"></div>
+      <p class="footer-credit">Built by the SATO community</p>
+      <div class="footer-links">
+        <a href="/">App</a>
+        <a href="/#mint">Mint</a>
+        <a href="/#seasons">Seasons</a>
+        <a href="https://sat0.org" target="_blank" rel="noopener">sat0.org</a>
+      </div>
+      <p class="footer-copy">&copy; 2026 Sato Stones. All rights reserved.</p>
+    </footer>
+  </div>
+  <script>
+    (function () {
+      var nav = document.getElementById("nav");
+      var btn = document.getElementById("navMenuBtn");
+      window.addEventListener("scroll", function () {
+        if (nav) nav.classList.toggle("nav-scrolled", window.scrollY > 40);
+      });
+      if (btn && nav) {
+        btn.addEventListener("click", function () {
+          var open = nav.classList.toggle("nav-open");
+          btn.setAttribute("aria-expanded", String(open));
+        });
+      }
+    })();
+  </script>
+</body>
+</html>

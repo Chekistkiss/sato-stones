@@ -93,6 +93,7 @@ const state = { minted: 0, genesis: 0, season: 0, pool: 0n, prize: 0n, userToken
 document.addEventListener("DOMContentLoaded", async () => {
   initIntroAnimation();
   initScrollNav();
+  initMobileNav();
   updateExplorerLinks();
   if (!(await waitForEthers(5000))) return;
   isDemo = !CONFIG.contractAddress || CONFIG.contractAddress.startsWith("0x000");
@@ -695,6 +696,23 @@ function initIntroAnimation() {
 function initScrollNav() {
   const nav = document.getElementById("nav");
   window.addEventListener("scroll", () => nav?.classList.toggle("nav-scrolled", window.scrollY > 40));
+}
+
+function initMobileNav() {
+  const nav = document.getElementById("nav");
+  const btn = document.getElementById("navMenuBtn");
+  const links = document.getElementById("navLinks");
+  if (!nav || !btn || !links) return;
+  btn.addEventListener("click", () => {
+    const open = nav.classList.toggle("nav-open");
+    btn.setAttribute("aria-expanded", String(open));
+  });
+  links.querySelectorAll("a").forEach((link) => {
+    link.addEventListener("click", () => {
+      nav.classList.remove("nav-open");
+      btn.setAttribute("aria-expanded", "false");
+    });
+  });
 }
 
 window.connectWallet = connectWallet;
