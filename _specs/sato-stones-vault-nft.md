@@ -1,8 +1,18 @@
 # Sato Stones — Vault NFT Specification
 
-> Version: 1.3  
-> Status: Ready for development  
-> Chain: Ethereum Mainnet (EVM)  
+> **Version: 1.3 — DEPRECATED**
+> **Status: Superseded by [sato-stones-vault-nft-v2.md](./sato-stones-vault-nft-v2.md) (v2.0).**
+> Kept as historical reference only. Do not implement against this document.
+>
+> Reason for deprecation: v1.3 had a fundamental product flaw — the team only earned revenue when users misbehaved (early-exit penalty), and user expected APY was uncompetitive. v2.0 restructures mint fee, lock periods, multipliers, penalty split, Genesis selection (anti-MEV leaderboard), wallet cap (by `originalMinter`, not `snapshotOwner`), time-weighted season shares, EIP-2981 royalty, sponsored seasons, and lottery (top-3 + per-minter cap). See v2.0 §0 for the full delta and §18 for the decision log.
+>
+> Original v1.3 content preserved below for archival purposes.
+>
+> ---
+>
+> Version: 1.3
+> Status: Ready for development (HISTORICAL)
+> Chain: Ethereum Mainnet (EVM)
 > Replaces the deprecated fixed-tier bonding-curve mint model.
 
 ---

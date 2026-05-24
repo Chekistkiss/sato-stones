@@ -21,13 +21,25 @@ _specs/        Specifications
 | `SatoStonesVault.sol` | Lock SATO, seasons, penalties, Genesis, VRF lottery |
 | `mocks/MockERC20.sol`, `MockVRFCoordinator.sol` | Sepolia / local tests |
 
-### Key functions
+### Key functions (v1.3 — current code)
 
 - `mint(grossAmount, lockDays)` — lock SATO (2% fee → season pool)
 - `earlyExit(tokenId)` — progressive penalty; burns NFT
 - `redeem(tokenId)` — full SATO back after lock; NFT kept
 - `finalizeSeason` / `claimSeason` — seasonal pool distribution
 - `requestPrizeDraw` / `claimPrize` — lottery from penalty-funded pool
+
+### v2.0 surface additions (see `_specs/sato-stones-vault-nft-v2.md`)
+
+- 4% mint fee split 50/35/10/5 (pool/dev/prize/burn)
+- 30/90/180/365d locks with 1×/2.5×/5×/10× multipliers
+- Top-21 Genesis leaderboard (anti-MEV)
+- `sponsorSeason()` for partner deposits
+- `distributeRoyalty()` for EIP-2981 SATO royalties
+- `repledge()` for Genesis-only re-lock after redeem
+- Top-3 lottery winners with per-`originalMinter` 15% cap
+- Time-weighted season shares and `originalMinter`-based 8% wallet cap
+- `accountingLiabilities()` solvency view
 
 ## Development
 
