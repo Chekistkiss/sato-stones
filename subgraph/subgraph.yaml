@@ -1,0 +1,36 @@
+specVersion: 1.0.0
+schema:
+  file: ./schema.graphql
+dataSources:
+  - kind: ethereum
+    name: SatoStonesVaultV2
+    network: sepolia
+    source:
+      address: "0x0000000000000000000000000000000000000000"
+      abi: SatoStonesVaultV2
+      startBlock: 0
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - Stone
+        - Season
+        - SeasonClaim
+        - PrizeDraw
+        - RoyaltyDistribution
+      abis:
+        - name: SatoStonesVaultV2
+          file: ../artifacts/SatoStonesVaultV2.json
+      eventHandlers:
+        - event: StoneMinted(indexed address,indexed uint256,uint256,uint256,uint8,uint32,uint64,uint64)
+          handler: handleStoneMinted
+        - event: SeasonFinalized(indexed uint256,uint256,uint256)
+          handler: handleSeasonFinalized
+        - event: SeasonClaimed(indexed uint256,indexed uint256,indexed address,uint256)
+          handler: handleSeasonClaimed
+        - event: PrizeAssigned(indexed uint256,indexed address,uint8,uint256)
+          handler: handlePrizeAssigned
+        - event: RoyaltyDistributed(uint256,uint256,uint256,uint256,uint256)
+          handler: handleRoyaltyDistributed
+      file: ./src/mapping.ts

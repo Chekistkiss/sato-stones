@@ -262,6 +262,13 @@
     referrerpolicy="no-referrer"
     onerror="window.__loadEthersFallback && window.__loadEthersFallback()"
   ></script>
-  <script src="app-vault.js"></script>
+  <script>
+    (function () {
+      var s = document.createElement("script");
+      var cfg = window.SATO_STONES_CONFIG || {};
+      s.src = cfg.vaultVersion === 2 ? "app-vault-v2.js" : "app-vault.js";
+      document.body.appendChild(s);
+    })();
+  </script>
 </body>
 </html>

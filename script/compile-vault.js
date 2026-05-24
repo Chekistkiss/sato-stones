@@ -3,6 +3,7 @@
 const fs = require("fs");
 const path = require("path");
 const solc = require("solc");
+const { forgeArtifact, EIP170_MAX_BYTES } = require("./forge-artifact");
 
 const PROJECT_ROOT = process.cwd();
 const REMAPPINGS = [
@@ -12,8 +13,14 @@ const REMAPPINGS = [
 
 const ENTRYPOINTS = [
   "src/SatoStonesVault.sol",
+  "src/SatoStonesVaultV2.sol",
   "src/mocks/MockERC20.sol",
   "src/mocks/MockVRFCoordinator.sol",
+];
+
+const ARTIFACT_TARGETS = [
+  { source: "src/SatoStonesVault.sol", name: "SatoStonesVault", file: "SatoStonesVault.json" },
+  { source: "src/SatoStonesVaultV2.sol", name: "SatoStonesVaultV2", file: "SatoStonesVaultV2.json" },
 ];
 
 function readUtf8(p) {
@@ -32,6 +39,7 @@ function resolveImport(importPath) {
     path.join(PROJECT_ROOT, "src", importPath),
     path.join(PROJECT_ROOT, "src/interfaces", importPath),
     path.join(PROJECT_ROOT, "src/mocks", importPath),
+    path.join(PROJECT_ROOT, "src/base", importPath),
   ];
   for (const c of candidates) {
     if (fs.existsSync(c)) return c;
@@ -75,14 +83,26 @@ function compileAll() {
     console.warn(output.errors.map((e) => e.formattedMessage).join("\n"));
   }
 
-  const contract = output.contracts["src/SatoStonesVault.sol"]["SatoStonesVault"];
   const outDir = path.join(PROJECT_ROOT, "artifacts");
   fs.mkdirSync(outDir, { recursive: true });
-  fs.writeFileSync(
-    path.join(outDir, "SatoStonesVault.json"),
-    JSON.stringify({ abi: contract.abi, bytecode: contract.evm.bytecode.object }, null, 2)
-  );
-  console.log("Compiled SatoStonesVault -> artifacts/SatoStonesVault.json");
+  for (const target of ARTIFACT_TARGETS) {
+    const contract = output.contracts[target.source]?.[target.name];
+    if (!contract) {
+      throw new Error(`Missing compile output for ${target.source}:${target.name}`);
+    }
+    const bytecode = contract.evm.bytecode.object;
+    const bytes = bytecode.length / 2;
+    if (bytes > EIP170_MAX_BYTES) {
+      console.warn(
+        `WARNING: ${target.name} is ${bytes} bytes (limit ${EIP170_MAX_BYTES}) — mainnet deploy may fail`
+      );
+    }
+    fs.writeFileSync(
+      path.join(outDir, target.file),
+      JSON.stringify({ abi: contract.abi, bytecode: `0x${bytecode}` }, null, 2)
+    );
+    console.log(`Compiled ${target.name} -> artifacts/${target.file}`);
+  }
   return output.contracts;
 }
 
@@ -97,8 +117,18 @@ function artifact(contracts, sourceName, contractName) {
   };
 }
 
+/** Prefer Foundry artifact when `out/` exists (canonical for deploy). */
+function artifactForDeploy(sourceFile, contractName) {
+  const forgePath = path.join(process.cwd(), "out", sourceFile, `${contractName}.json`);
+  if (fs.existsSync(forgePath)) {
+    return forgeArtifact(sourceFile, contractName);
+  }
+  const contracts = compileAll();
+  return artifact(contracts, sourceFile, contractName);
+}
+
 if (require.main === module) {
   compileAll();
 }
 
-module.exports = { compileAll, artifact };
+module.exports = { compileAll, artifact, artifactForDeploy, forgeArtifact };

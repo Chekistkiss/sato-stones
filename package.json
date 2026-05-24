@@ -14,7 +14,14 @@
     "vault:deploy:sepolia": "node script/deploy-sepolia-mocks.js",
     "vault:deploy:mainnet:dry-run": "node script/deploy-mainnet.js --dry-run",
     "vault:deploy:mainnet": "node script/deploy-mainnet.js --confirm-mainnet",
-    "test": "forge test -vv --match-contract SatoStonesVault"
+    "vault:v2:dry-run": "node script/deploy-sepolia-v2-mocks.js --dry-run",
+    "vault:v2:deploy:sepolia:mocks": "node script/deploy-sepolia-v2-mocks.js",
+    "vault:v2:deploy:mainnet:dry-run": "node script/deploy-mainnet-v2.js --dry-run",
+    "vault:v2:deploy:mainnet": "node script/deploy-mainnet-v2.js --confirm-mainnet",
+    "test": "forge test -vv --match-contract SatoStonesVault",
+    "test:v2": "forge test -vv --match-contract SatoStonesVaultV2",
+    "test:v2:invariant": "forge test -vv --match-contract SatoStonesVaultV2Invariant",
+    "test:v2:gas": "forge test -vv --match-contract SatoStonesVaultV2Gas"
   },
   "keywords": [],
   "author": "",
