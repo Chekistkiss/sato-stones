@@ -1,5 +1,6 @@
 // Copy to web/config.js after deploy
 window.SATO_STONES_CONFIG = {
+  vaultVersion: 2,
   contractAddress: "0xYourVaultAddress",
   satoTokenAddress: "0xYourSatoTokenAddress",
   vrfAddress: "0xYourVrfOptional",

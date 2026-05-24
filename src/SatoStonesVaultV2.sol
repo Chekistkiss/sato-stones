@@ -9,55 +9,22 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 import {IVRFCoordinatorV2Plus, VRFV2PlusClient} from "./interfaces/IVRFCoordinatorV2Plus.sol";
 import {IERC2981} from "./interfaces/IERC2981.sol";
 import {VRFConsumerBaseV2Plus} from "./base/VRFConsumerBaseV2Plus.sol";
+import {
+    GenesisCandidate,
+    GenesisCheckpoint,
+    LockDays,
+    RarityTier,
+    SeasonFinalizeState,
+    Vault
+} from "./VaultTypes.sol";
+import {VaultGenesisLib} from "./libraries/VaultGenesisLib.sol";
+import {VaultLotteryLib} from "./libraries/VaultLotteryLib.sol";
+import {VaultSeasonLib} from "./libraries/VaultSeasonLib.sol";
 
 /// @title SatoStonesVaultV2
 /// @notice Loyalty vault NFT v2.0 — spec: _specs/sato-stones-vault-nft-v2.md
 contract SatoStonesVaultV2 is ERC721A, ReentrancyGuard, VRFConsumerBaseV2Plus, IERC2981 {
     using SafeERC20 for IERC20;
-
-    enum LockDays {
-        Thirty,
-        Ninety,
-        OneEighty,
-        ThreeSixtyFive
-    }
-
-    enum RarityTier {
-        Common,
-        Uncommon,
-        Rare,
-        Mythic
-    }
-
-    struct Vault {
-        uint256 peakSato;
-        uint256 satoLocked;
-        uint64 mintTime;
-        uint64 lockEnd;
-        uint32 weightAtMint;
-        LockDays lockDays;
-        RarityTier rarity;
-        bool isGenesis;
-        uint8 genesisRank;
-        bool redeemed;
-    }
-
-    struct GenesisCandidate {
-        uint256 tokenId;
-        uint256 score;
-    }
-
-    struct GenesisCheckpoint {
-        uint256 amount;
-        uint16 activeCount;
-        uint64 timestamp;
-    }
-
-    struct SeasonFinalizeState {
-        uint256 distributable;
-        uint256 totalEffectiveWeight;
-        uint256 cursor;
-    }
 
     uint256 public constant MAX_SUPPLY = 2100;
     uint256 public constant BPS = 10_000;
@@ -479,27 +446,12 @@ contract SatoStonesVaultV2 is ERC721A, ReentrancyGuard, VRFConsumerBaseV2Plus, I
 
     function _offerGenesisCandidate(uint256 tokenId, uint256 score) internal {
         uint256 count = genesisCandidatesCount;
-        if (count < MAX_GENESIS) {
-            uint256 pos = count;
-            while (pos > 0 && genesisCandidates[pos - 1].score < score) {
-                genesisCandidates[pos] = genesisCandidates[pos - 1];
-                pos--;
-            }
-            genesisCandidates[pos] = GenesisCandidate({tokenId: tokenId, score: score});
-            genesisCandidatesCount = count + 1;
-            emit GenesisCandidateUpdated(tokenId, score, pos + 1);
-            return;
-        }
-
-        if (score <= genesisCandidates[MAX_GENESIS - 1].score) return;
-
-        uint256 insertAt = MAX_GENESIS - 1;
-        while (insertAt > 0 && genesisCandidates[insertAt - 1].score < score) {
-            genesisCandidates[insertAt] = genesisCandidates[insertAt - 1];
-            insertAt--;
-        }
-        genesisCandidates[insertAt] = GenesisCandidate({tokenId: tokenId, score: score});
-        emit GenesisCandidateUpdated(tokenId, score, insertAt + 1);
+        (uint256 newCount, uint256 rank) = VaultGenesisLib.offerGenesisCandidate(
+            genesisCandidates, MAX_GENESIS, tokenId, score, count
+        );
+        if (rank == 0) return;
+        genesisCandidatesCount = newCount;
+        emit GenesisCandidateUpdated(tokenId, score, rank);
     }
 
     function finalizeGenesis() external {
@@ -531,21 +483,6 @@ contract SatoStonesVaultV2 is ERC721A, ReentrancyGuard, VRFConsumerBaseV2Plus, I
     // -------------------------------------------------------------------------
     // Seasons
     // -------------------------------------------------------------------------
-
-    function finalizeSeason(uint256 seasonId) external nonReentrant {
-        _requireCanFinalize(seasonId);
-
-        SeasonFinalizeState storage st = seasonFinalize[seasonId];
-        st.distributable = seasonPool[seasonId] + undistributedCarry;
-        seasonPool[seasonId] = 0;
-        undistributedCarry = 0;
-
-        uint256 n = totalMintedEver;
-        for (uint256 id = _startTokenId(); id < _startTokenId() + n; id++) {
-            _processSeasonToken(seasonId, id, st);
-        }
-        _closeSeasonFinalize(seasonId, st);
-    }
 
     function finalizeSeasonChunk(uint256 seasonId, uint256 startId, uint256 endId)
         external
@@ -646,40 +583,17 @@ contract SatoStonesVaultV2 is ERC721A, ReentrancyGuard, VRFConsumerBaseV2Plus, I
         uint256 distributable,
         uint256 totalWeight
     ) internal returns (uint256 totalAllocated) {
-        uint256 n = totalMintedEver;
-        address[] memory minters = new address[](n);
-        uint256[] memory minterRaw = new uint256[](n);
-        uint256 minterCount;
-
-        for (uint256 id = _startTokenId(); id < _startTokenId() + n; id++) {
-            uint256 w = weightInSeason[seasonId][id];
-            if (w == 0) continue;
-            address m = originalMinter[id];
-            uint256 raw = (distributable * w) / totalWeight;
-            uint256 idx = _indexOfAddress(minters, minterCount, m);
-            if (idx == type(uint256).max) {
-                minters[minterCount] = m;
-                minterRaw[minterCount] = raw;
-                minterCount++;
-            } else {
-                minterRaw[idx] += raw;
-            }
-        }
-
-        uint256 minterCap = (distributable * WALLET_CAP_BPS) / BPS;
-
-        for (uint256 id = _startTokenId(); id < _startTokenId() + n; id++) {
-            uint256 w = weightInSeason[seasonId][id];
-            if (w == 0) continue;
-            address m = originalMinter[id];
-            uint256 raw = (distributable * w) / totalWeight;
-            uint256 idx = _indexOfAddress(minters, minterCount, m);
-            uint256 mr = minterRaw[idx];
-            uint256 paid = raw;
-            if (mr > minterCap) paid = (raw * minterCap) / mr;
-            claimAmount[seasonId][id] = paid;
-            totalAllocated += paid;
-        }
+        return VaultSeasonLib.applyMinterCapAndSetClaims(
+            weightInSeason,
+            claimAmount,
+            originalMinter,
+            seasonId,
+            distributable,
+            totalWeight,
+            totalMintedEver,
+            _startTokenId(),
+            WALLET_CAP_BPS
+        );
     }
 
     function claimSeason(uint256 seasonId, uint256 tokenId) external nonReentrant {
@@ -828,33 +742,11 @@ contract SatoStonesVaultV2 is ERC721A, ReentrancyGuard, VRFConsumerBaseV2Plus, I
     }
 
     function _drawWinner(uint256 randomWord) internal returns (address) {
-        uint256 len = _drawMinters.length;
-        if (len == 0 || pendingDrawTotalWeight == 0) return address(0);
-
-        uint256 roll = randomWord % pendingDrawTotalWeight;
-        uint256 idx = _drawWinnerIndex(roll);
-        address winner = _drawMinters[idx];
-        uint256 removed = idx == 0 ? _drawMinterWeights[0] : _drawMinterWeights[idx] - _drawMinterWeights[idx - 1];
-
-        for (uint256 i = idx; i < len - 1; i++) {
-            _drawMinters[i] = _drawMinters[i + 1];
-            _drawMinterWeights[i] = _drawMinterWeights[i + 1] - removed;
-        }
-        _drawMinters.pop();
-        _drawMinterWeights.pop();
+        (address winner, uint256 removed) = VaultLotteryLib.drawWinner(
+            _drawMinters, _drawMinterWeights, randomWord, pendingDrawTotalWeight
+        );
         pendingDrawTotalWeight -= removed;
         return winner;
-    }
-
-    function _drawWinnerIndex(uint256 roll) internal view returns (uint256) {
-        uint256 lo;
-        uint256 hi = _drawMinterWeights.length;
-        while (lo < hi) {
-            uint256 mid = (lo + hi) / 2;
-            if (roll < _drawMinterWeights[mid]) hi = mid;
-            else lo = mid + 1;
-        }
-        return lo;
     }
 
     function _creditPrize(address winner, uint256 amt) internal {
@@ -874,43 +766,15 @@ contract SatoStonesVaultV2 is ERC721A, ReentrancyGuard, VRFConsumerBaseV2Plus, I
 
     function _snapshotDrawMinters() internal {
         _clearDrawMinters();
-        uint256 n = totalMintedEver;
-        address[] memory minters = new address[](n);
-        uint256[] memory weights = new uint256[](n);
-        uint256 count;
-
-        for (uint256 id = _startTokenId(); id < _startTokenId() + n; id++) {
-            if (!_exists(id)) continue;
-            Vault storage v = vaults[id];
-            if (v.satoLocked == 0 || block.timestamp >= v.lockEnd) continue;
-            address m = originalMinter[id];
-            uint256 w = v.weightAtMint;
-            uint256 idx = _indexOfAddress(minters, count, m);
-            if (idx == type(uint256).max) {
-                minters[count] = m;
-                weights[count] = w;
-                count++;
-            } else {
-                weights[idx] += w;
-            }
-        }
-
-        if (count == 0) return;
-
-        uint256 totalRaw;
-        for (uint256 i; i < count; i++) totalRaw += weights[i];
-
-        uint256 cap = (totalRaw * LOTTERY_WALLET_CAP_BPS) / BPS;
-        uint256 cumulative;
-        for (uint256 i; i < count; i++) {
-            uint256 capped = weights[i];
-            if (capped > cap) capped = cap;
-            if (capped == 0) continue;
-            cumulative += capped;
-            _drawMinters.push(minters[i]);
-            _drawMinterWeights.push(cumulative);
-        }
-        pendingDrawTotalWeight = cumulative;
+        pendingDrawTotalWeight = VaultLotteryLib.snapshotDrawMinters(
+            vaults,
+            originalMinter,
+            _drawMinters,
+            _drawMinterWeights,
+            totalMintedEver,
+            _startTokenId(),
+            LOTTERY_WALLET_CAP_BPS
+        );
     }
 
     function _clearDrawMinters() internal {
@@ -1076,18 +940,6 @@ contract SatoStonesVaultV2 is ERC721A, ReentrancyGuard, VRFConsumerBaseV2Plus, I
         return _activeGenesisCount();
     }
 
-    function activeGenesisIds() external view returns (uint256[] memory ids) {
-        uint16 count = _activeGenesisCount();
-        ids = new uint256[](count);
-        uint256 n = totalMintedEver;
-        uint256 written;
-        for (uint256 id = _startTokenId(); id < _startTokenId() + n && written < count; id++) {
-            Vault storage v = vaults[id];
-            if (v.isGenesis && v.satoLocked > 0) {
-                ids[written++] = id;
-            }
-        }
-    }
 
     function pendingGenesisRoyalty(uint256 tokenId, uint256[] calldata checkpointIndices)
         external
@@ -1190,15 +1042,14 @@ contract SatoStonesVaultV2 is ERC721A, ReentrancyGuard, VRFConsumerBaseV2Plus, I
     }
 
     function _markGenesisCheckpointEligible(uint256 checkpointIdx, uint16 activeCount) internal {
-        uint256 n = totalMintedEver;
-        uint16 marked;
-        for (uint256 id = _startTokenId(); id < _startTokenId() + n && marked < activeCount; id++) {
-            Vault storage v = vaults[id];
-            if (v.isGenesis && v.satoLocked > 0) {
-                genesisCheckpointEligible[id][checkpointIdx] = true;
-                marked++;
-            }
-        }
+        VaultGenesisLib.markGenesisCheckpointEligible(
+            vaults,
+            genesisCheckpointEligible,
+            checkpointIdx,
+            activeCount,
+            totalMintedEver,
+            _startTokenId()
+        );
     }
 
     function _currentSeasonId() internal view returns (uint256) {
@@ -1244,40 +1095,13 @@ contract SatoStonesVaultV2 is ERC721A, ReentrancyGuard, VRFConsumerBaseV2Plus, I
         pure
         returns (uint32)
     {
-        uint256 root = _sqrt(peakSato);
-        uint256 w = (root * _lockMultiplierBps(lockDays)) / WEIGHT_SCALE;
-        if (isGenesis) w = (w * GENESIS_MULTIPLIER_BPS) / BPS;
-        if (w > type(uint32).max) w = type(uint32).max;
-        return uint32(w);
+        return VaultGenesisLib.computeWeight(
+            peakSato, lockDays, isGenesis, WEIGHT_SCALE, GENESIS_MULTIPLIER_BPS
+        );
     }
 
     function _rarityFromWeight(uint32 weight) internal pure returns (RarityTier) {
-        if (weight >= 250) return RarityTier.Mythic;
-        if (weight >= 80) return RarityTier.Rare;
-        if (weight >= 25) return RarityTier.Uncommon;
-        return RarityTier.Common;
-    }
-
-    function _indexOfAddress(
-        address[] memory addrs,
-        uint256 count,
-        address target
-    ) internal pure returns (uint256) {
-        for (uint256 i; i < count; i++) {
-            if (addrs[i] == target) return i;
-        }
-        return type(uint256).max;
-    }
-
-    function _sqrt(uint256 x) internal pure returns (uint256) {
-        if (x == 0) return 0;
-        uint256 z = (x + 1) / 2;
-        uint256 y = x;
-        while (z < y) {
-            y = z;
-            z = (x / z + z) / 2;
-        }
-        return y;
+        return VaultGenesisLib.rarityFromWeight(weight);
     }
 
     function _startTokenId() internal view virtual override returns (uint256) {

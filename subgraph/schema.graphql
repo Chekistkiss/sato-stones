@@ -1,0 +1,54 @@
+type Stone @entity {
+  id: ID!
+  tokenId: BigInt!
+  minter: Bytes!
+  owner: Bytes!
+  originalMinter: Bytes!
+  peakSato: BigInt!
+  satoLocked: BigInt!
+  mintTime: BigInt!
+  lockEnd: BigInt!
+  weightAtMint: BigInt!
+  lockDays: Int!
+  rarity: Int!
+  isGenesis: Boolean!
+  genesisRank: Int!
+  redeemed: Boolean!
+}
+
+type Season @entity {
+  id: ID!
+  seasonId: BigInt!
+  distributable: BigInt!
+  totalEffectiveWeight: BigInt!
+  finalized: Boolean!
+  closed: Boolean!
+}
+
+type SeasonClaim @entity {
+  id: ID!
+  seasonId: BigInt!
+  tokenId: BigInt!
+  claimant: Bytes!
+  amount: BigInt!
+}
+
+type PrizeDraw @entity {
+  id: ID!
+  drawId: BigInt!
+  requestId: BigInt!
+  amount: BigInt!
+  winner: Bytes!
+  place: Int!
+  winnerAmount: BigInt!
+}
+
+type RoyaltyDistribution @entity {
+  id: ID!
+  royaltyIn: BigInt!
+  poolAmount: BigInt!
+  devAmount: BigInt!
+  genesisAmount: BigInt!
+  checkpointIdx: BigInt!
+  timestamp: BigInt!
+}

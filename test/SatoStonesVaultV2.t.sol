@@ -3,6 +3,7 @@ pragma solidity ^0.8.24;
 
 import {Test} from "forge-std/Test.sol";
 import {SatoStonesVaultV2} from "../src/SatoStonesVaultV2.sol";
+import {LockDays} from "../src/VaultTypes.sol";
 import {MockERC20} from "../src/mocks/MockERC20.sol";
 import {MockVRFCoordinator} from "../src/mocks/MockVRFCoordinator.sol";
 
@@ -42,9 +43,21 @@ contract SatoStonesVaultV2Test is Test {
         sato.approve(address(vault), type(uint256).max);
     }
 
+
+    function _finalizeSeasonFull(uint256 seasonId) internal {
+        uint256 n = vault.totalMintedEver();
+        if (n == 0) {
+            vm.expectRevert();
+            vault.finalizeSeasonClose(seasonId);
+            return;
+        }
+        vault.finalizeSeasonChunk(seasonId, 1, n);
+        vault.finalizeSeasonClose(seasonId);
+    }
+
     function test_MintAndPreview() public {
         vm.prank(user);
-        uint256 id = vault.mint(100 ether, SatoStonesVaultV2.LockDays.Thirty);
+        uint256 id = vault.mint(100 ether, LockDays.Thirty);
         assertEq(id, 1);
         (
             uint256 peak,
@@ -54,7 +67,7 @@ contract SatoStonesVaultV2Test is Test {
             ,
             ,
             bool raceOpen
-        ) = vault.previewMint(100 ether, SatoStonesVaultV2.LockDays.Thirty);
+        ) = vault.previewMint(100 ether, LockDays.Thirty);
         assertEq(peak, 96 ether);
         assertGt(w1, w0);
         assertTrue(raceOpen);
@@ -63,7 +76,7 @@ contract SatoStonesVaultV2Test is Test {
 
     function test_MinMintProducesWeight() public {
         vm.prank(user);
-        vault.mint(50 ether, SatoStonesVaultV2.LockDays.Thirty);
+        vault.mint(50 ether, LockDays.Thirty);
         (,,,,uint32 weight,,,,,) = vault.vaults(1);
         assertGt(weight, 0);
     }
@@ -74,7 +87,7 @@ contract SatoStonesVaultV2Test is Test {
         uint256 deadBefore = sato.balanceOf(vault.DEAD());
 
         vm.prank(user);
-        vault.mint(1000 ether, SatoStonesVaultV2.LockDays.Thirty);
+        vault.mint(1000 ether, LockDays.Thirty);
 
         uint256 fee = (1000 ether * 400) / 10_000;
         assertEq(vault.devBalance() - devBefore, (fee * 3500) / 10_000);
@@ -84,7 +97,7 @@ contract SatoStonesVaultV2Test is Test {
 
     function test_RedeemAfterLock() public {
         vm.prank(user);
-        vault.mint(100 ether, SatoStonesVaultV2.LockDays.Thirty);
+        vault.mint(100 ether, LockDays.Thirty);
         vm.warp(block.timestamp + 31 days);
         uint256 before = sato.balanceOf(user);
         vm.prank(user);
@@ -98,7 +111,7 @@ contract SatoStonesVaultV2Test is Test {
 
     function test_EarlyExitBurnsNFT() public {
         vm.prank(user);
-        vault.mint(1000 ether, SatoStonesVaultV2.LockDays.Thirty);
+        vault.mint(1000 ether, LockDays.Thirty);
         vm.prank(user);
         vault.earlyExit(1);
         vm.expectRevert();
@@ -107,7 +120,7 @@ contract SatoStonesVaultV2Test is Test {
 
     function test_PenaltySplitBps() public {
         vm.prank(user);
-        vault.mint(1000 ether, SatoStonesVaultV2.LockDays.Thirty);
+        vault.mint(1000 ether, LockDays.Thirty);
         (uint256 peakSato,,,,,,,,,) = vault.vaults(1);
 
         uint256 poolBefore = vault.seasonPool(0);
@@ -129,7 +142,7 @@ contract SatoStonesVaultV2Test is Test {
 
     function test_PenaltyFloorOnLastPartialDay() public {
         vm.prank(user);
-        vault.mint(1000 ether, SatoStonesVaultV2.LockDays.Thirty);
+        vault.mint(1000 ether, LockDays.Thirty);
         (,,, uint64 lockEnd,,,,,,) = vault.vaults(1);
         vm.warp(uint256(lockEnd) - 1);
         uint256 penalty = vault.getEarlyExitPenalty(1);
@@ -139,7 +152,7 @@ contract SatoStonesVaultV2Test is Test {
 
     function test_GenesisCandidateAndFinalize() public {
         vm.prank(user);
-        vault.mint(5000 ether, SatoStonesVaultV2.LockDays.ThreeSixtyFive);
+        vault.mint(5000 ether, LockDays.ThreeSixtyFive);
 
         (, uint256 count) = vault.genesisLeaderboard();
         assertEq(count, 1);
@@ -154,7 +167,7 @@ contract SatoStonesVaultV2Test is Test {
 
     function test_GenesisCannotEarlyExit() public {
         vm.prank(user);
-        vault.mint(5000 ether, SatoStonesVaultV2.LockDays.ThreeSixtyFive);
+        vault.mint(5000 ether, LockDays.ThreeSixtyFive);
         vm.warp(vault.t0() + 30 days + 1);
         vault.finalizeGenesis();
         vm.expectRevert(SatoStonesVaultV2.GenesisCannotExit.selector);
@@ -164,14 +177,14 @@ contract SatoStonesVaultV2Test is Test {
 
     function test_RepledgeAfterRedeem() public {
         vm.prank(user);
-        vault.mint(5000 ether, SatoStonesVaultV2.LockDays.ThreeSixtyFive);
+        vault.mint(5000 ether, LockDays.ThreeSixtyFive);
         vm.warp(vault.t0() + 30 days + 1);
         vault.finalizeGenesis();
         vm.warp(block.timestamp + 365 days + 1);
         vm.prank(user);
         vault.redeem(1);
         vm.prank(user);
-        vault.repledge(1, 500 ether, SatoStonesVaultV2.LockDays.Ninety);
+        vault.repledge(1, 500 ether, LockDays.Ninety);
         (, uint256 satoLocked,,,,,,,, bool redeemed) = vault.vaults(1);
         assertGt(satoLocked, 0);
         assertFalse(redeemed);
@@ -179,9 +192,9 @@ contract SatoStonesVaultV2Test is Test {
 
     function test_SeasonFinalizeAndClaim() public {
         vm.prank(user);
-        vault.mint(500 ether, SatoStonesVaultV2.LockDays.Ninety);
+        vault.mint(500 ether, LockDays.Ninety);
         vm.warp(31 days);
-        vault.finalizeSeason(0);
+        _finalizeSeasonFull(0);
         assertTrue(vault.seasonFinalized(0));
         uint256 claim = vault.claimAmount(0, 1);
         assertGt(claim, 0);
@@ -193,12 +206,12 @@ contract SatoStonesVaultV2Test is Test {
 
     function test_WalletCapByOriginalMinter() public {
         vm.startPrank(user);
-        vault.mint(2000 ether, SatoStonesVaultV2.LockDays.Ninety);
-        vault.mint(2000 ether, SatoStonesVaultV2.LockDays.Ninety);
+        vault.mint(2000 ether, LockDays.Ninety);
+        vault.mint(2000 ether, LockDays.Ninety);
         vm.stopPrank();
 
         vm.warp(31 days);
-        vault.finalizeSeason(0);
+        _finalizeSeasonFull(0);
 
         uint256 c1 = vault.claimAmount(0, 1);
         uint256 c2 = vault.claimAmount(0, 2);
@@ -209,7 +222,7 @@ contract SatoStonesVaultV2Test is Test {
 
     function test_TransferLockoutReverts() public {
         vm.prank(user);
-        vault.mint(500 ether, SatoStonesVaultV2.LockDays.Thirty);
+        vault.mint(500 ether, LockDays.Thirty);
         uint256 end = vault.seasonEnd(0);
         vm.warp(end - 12 hours);
         vm.prank(user);
@@ -219,13 +232,13 @@ contract SatoStonesVaultV2Test is Test {
 
     function test_SeasonSnapshotUsesLastTransferOwner() public {
         vm.prank(user);
-        vault.mint(500 ether, SatoStonesVaultV2.LockDays.Ninety);
+        vault.mint(500 ether, LockDays.Ninety);
         uint256 end = vault.seasonEnd(0);
         vm.warp(end - 2 days);
         vm.prank(user);
         vault.transferFrom(user, user2, 1);
         vm.warp(end + 1);
-        vault.finalizeSeason(0);
+        _finalizeSeasonFull(0);
         assertEq(vault.snapshotOwner(0, 1), user2);
         uint256 amt = vault.claimAmount(0, 1);
         vm.prank(user2);
@@ -236,14 +249,14 @@ contract SatoStonesVaultV2Test is Test {
 
     function test_PrizeDrawTopThree() public {
         vm.prank(user3);
-        vault.mint(1000 ether, SatoStonesVaultV2.LockDays.Ninety);
+        vault.mint(1000 ether, LockDays.Ninety);
         vm.prank(user3);
         vault.earlyExit(1);
 
         vm.prank(user);
-        vault.mint(1000 ether, SatoStonesVaultV2.LockDays.Ninety);
+        vault.mint(1000 ether, LockDays.Ninety);
         vm.prank(user2);
-        vault.mint(1000 ether, SatoStonesVaultV2.LockDays.Ninety);
+        vault.mint(1000 ether, LockDays.Ninety);
 
         vm.warp(block.timestamp + 31 days);
         uint256 requestId = vault.requestPrizeDraw();
@@ -260,9 +273,9 @@ contract SatoStonesVaultV2Test is Test {
 
     function test_RecoverTimedOutPrizeDraw() public {
         vm.prank(user);
-        vault.mint(1000 ether, SatoStonesVaultV2.LockDays.Ninety);
+        vault.mint(1000 ether, LockDays.Ninety);
         vm.prank(user2);
-        vault.mint(1000 ether, SatoStonesVaultV2.LockDays.Ninety);
+        vault.mint(1000 ether, LockDays.Ninety);
         vm.prank(user);
         vault.earlyExit(1);
 
@@ -292,7 +305,7 @@ contract SatoStonesVaultV2Test is Test {
 
     function test_AccountingSolvencyAfterMint() public {
         vm.prank(user);
-        vault.mint(1000 ether, SatoStonesVaultV2.LockDays.Ninety);
+        vault.mint(1000 ether, LockDays.Ninety);
         assertGe(sato.balanceOf(address(vault)), vault.accountingLiabilities());
     }
 
@@ -308,7 +321,7 @@ contract SatoStonesVaultV2Test is Test {
 
     function test_CloseMissedSeason() public {
         vm.prank(user);
-        vault.mint(100 ether, SatoStonesVaultV2.LockDays.Thirty);
+        vault.mint(100 ether, LockDays.Thirty);
         vm.warp(vault.seasonEnd(0) + vault.FINALIZE_GRACE_PERIOD() + 1);
         vault.closeMissedSeason(0);
         assertTrue(vault.seasonClosed(0));
@@ -320,17 +333,17 @@ contract SatoStonesVaultV2Test is Test {
     {
         gross = bound(gross, 50 ether, 5000 ether);
         lockIdx = uint8(bound(lockIdx, 0, 3));
-        SatoStonesVaultV2.LockDays lock = SatoStonesVaultV2.LockDays(lockIdx);
+        LockDays lock = LockDays(lockIdx);
 
         vm.prank(user);
         uint256 id = vault.mint(gross, lock);
         (uint256 peakSato,, uint64 lockEnd,,,,,,,) = vault.vaults(id);
 
-        uint256 lockSecs = lock == SatoStonesVaultV2.LockDays.Thirty
+        uint256 lockSecs = lock == LockDays.Thirty
             ? 30 days
-            : lock == SatoStonesVaultV2.LockDays.Ninety
+            : lock == LockDays.Ninety
                 ? 90 days
-                : lock == SatoStonesVaultV2.LockDays.OneEighty ? 180 days : 365 days;
+                : lock == LockDays.OneEighty ? 180 days : 365 days;
 
         warpSecs = bound(warpSecs, 1, lockSecs - 1);
         vm.warp(block.timestamp + warpSecs);

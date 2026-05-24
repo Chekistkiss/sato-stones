@@ -6,6 +6,17 @@
 
 Vault NFT (2100 max): user locks **100–10k SATO** for **15/30/60d**. **2%** mint fee → season pool. **Early exit** → progressive penalty → 48% pool / 33% burn / 15% prize / 2% dev. After lock: **100% SATO back**, NFT stays. **Genesis** = first **21** mints with **≥500 SATO** (not low tokenId).
 
+## V2 implementation (2026-05-24)
+
+- [x] `src/SatoStonesVaultV2.sol` + `test/SatoStonesVaultV2.t.sol` (23 tests)
+- [x] Invariant suite `test/invariant/SatoStonesVaultV2*.sol`
+- [x] Gas benchmarks `test/SatoStonesVaultV2Gas.t.sol` (chunked finalize path)
+- [x] Deploy: `script/deploy-sepolia-v2-mocks.js`, `script/deploy-mainnet-v2.js`
+- [x] Frontend loader: `web/app-vault-v2.js` when `config.vaultVersion === 2`
+- [x] Subgraph scaffold `subgraph/`
+- [ ] Sepolia V2 deploy + UI smoke test
+- [ ] External audit
+
 ## What is DONE (MVP session)
 
 - [x] `src/SatoStonesVault.sol` — mint, earlyExit, redeem, seasons (finalize/claim), dev withdraw, VRF lottery
