@@ -1,46 +1,27 @@
-# Sato Stones — Utility and season perks specification
+# Sato Stones — Utility specification
 
-## Scope
+Utility V1 is intentionally minimal in the simplified design.
 
-Utility V1 is intentionally minimal: keep lottery and mint core unchanged while adding retention through 15-day seasons and off-chain Heat accounting.
+## Principles
 
-## Utility model (V1)
+- Keep core mint, lock, redeem, early-exit, reward pool, and lottery mechanics simple.
+- No special early-mint utility or allowlist tier.
+- Any future off-chain Heat or loyalty system must not change the deployed vault accounting unless a new contract version is explicitly specified.
 
-- Heat is computed off-chain from chain events and ownership snapshots.
-- Heat influences next-season perks first; lottery weighting stays token-based in V1 unless explicitly upgraded in a later contract release.
-- Season duration is fixed at 15 days.
+## Possible off-chain Heat V1
 
-## Heat policy
+Heat can be computed from public chain data after the single reward season:
 
-- Base accrual: `1 Heat / day / eligible Stone`.
-- Eligibility source for V1 off-chain indexer:
-  - default: wallet owns Stone during accrual window;
-  - optional stricter mode for V1.1: only staked Stones once staking module exists.
-- Transfer penalty and cooldown are not enforced on-chain in V1; if introduced, they must move to contract scope and be documented separately.
+- active lock duration;
+- amount locked (`peakSato`);
+- whether the Stone was redeemed normally vs early-exited;
+- reward claim participation;
+- lottery participation.
 
-## Season outputs (for next season)
+Heat is informational until a future release defines concrete perks.
 
-- Perks are delivered via off-chain allowlist proofs (Merkle root):
-  - tier,
-  - early mint start timestamp,
-  - discount bps,
-  - max discounted mints.
-- Suggested tier thresholds for 15-day cadence:
-  - None: `0-4`,
-  - Bronze: `5-14`,
-  - Silver: `15-29`,
-  - Gold: `30-44`,
-  - Obsidian: `45+`.
+## Deliverables before using Heat publicly
 
-## Acceptance criteria
-
-- [ ] One finalized season snapshot every 15 days with reproducible export.
-- [ ] Merkle dataset includes wallet, tier, discount, early window, mint cap.
-- [ ] UI can show current season countdown and previous season tier.
-- [ ] Public docs explain that V1 Heat accounting is off-chain and reproducible from published data.
-
-## Out of scope for V1
-
-- On-chain staking and Heat storage.
-- Heat-weighted lottery in contract.
-- Reforge / governance / separate reward token.
+- [ ] Deterministic export script.
+- [ ] Public explanation of score inputs.
+- [ ] Clear statement that Heat does not affect current on-chain claims or lottery odds.

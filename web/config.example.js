@@ -8,4 +8,7 @@ window.SATO_STONES_CONFIG = {
   rpcUrls: ["https://ethereum-sepolia-rpc.publicnode.com"],
   explorerBaseUrl: "https://sepolia.etherscan.io",
   maxSupply: 2100,
+  // Optional. Leave empty to use the on-chain multicall path.
+  // Once your Ponder indexer is deployed, set this to e.g. "https://indexer.satostones.xyz".
+  indexerUrl: "",
 };

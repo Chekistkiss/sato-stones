@@ -14,7 +14,8 @@ Independent audit before unrestricted mainnet launch of `SatoStonesVault`.
 
 - Mint escrow and fee-on-transfer safe intake; supply cap 2100 (burn does not reopen slots).
 - Early-exit penalty math and split (48/33/15/2 + 2% dust → pool).
-- Season finalize snapshot, wallet 10% cap, claim only by `snapshotOwner`.
+- Season chunked snapshot, request-time eligibility, lazy pro-rata claims, claim only by `snapshotOwner`.
+- Prize draw chunked snapshot, request-time eligibility, stable snapshot during paused transfers/redeem/early-exit.
 - Contract SATO solvency: locked + pools + prizes ≤ balance.
 - VRF fulfill cannot double-pay; reentrancy on mint/exit/redeem/claim.
 - No admin pause/upgrade; `withdrawDev` routes to immutable `devAddress`.

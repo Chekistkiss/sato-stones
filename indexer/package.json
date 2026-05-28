@@ -1,0 +1,25 @@
+{
+  "name": "sato-stones-indexer",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "ponder dev",
+    "start": "ponder start",
+    "codegen": "ponder codegen",
+    "serve": "ponder serve",
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "hono": "^4.6.10",
+    "ponder": "0.16.6",
+    "viem": "^2.21.40"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3",
+    "@types/node": "^22.9.0"
+  },
+  "engines": {
+    "node": ">=18.14"
+  }
+}

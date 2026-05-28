@@ -35,37 +35,43 @@ contract SatoStonesVaultTest is Test {
         sato.approve(address(vault), type(uint256).max);
     }
 
-    function test_MintGenesis() public {
+    function test_MintStoresSimplifiedVaultFields() public {
         vm.prank(user);
         uint256 id = vault.mint(500 ether, SatoStonesVault.LockDays.Sixty);
         assertEq(id, 1);
-        (,,,,,, bool isGenesis, uint8 rank,) = vault.vaults(1);
-        assertTrue(isGenesis);
-        assertEq(rank, 1);
+        (uint256 peakSato, uint256 locked,, uint32 weight,, SatoStonesVault.RarityTier rarity, bool redeemed) = vault.vaults(1);
+        assertEq(peakSato, 490 ether);
+        assertEq(locked, 490 ether);
+        assertGt(weight, 0);
+        assertEq(uint8(rarity), uint8(SatoStonesVault.RarityTier.Mythic));
+        assertFalse(redeemed);
     }
 
-    function test_PreviewGenesisAt500Gross() public {
-        (,, , bool wouldBeGenesis) =
-            vault.previewMint(500 ether, SatoStonesVault.LockDays.Sixty, true);
-        assertTrue(wouldBeGenesis);
+    function test_PreviewMintReturnsWeightAndRarity() public {
+        (uint256 peakSato, uint32 weight, SatoStonesVault.RarityTier rarity) =
+            vault.previewMint(500 ether, SatoStonesVault.LockDays.Sixty);
+        assertEq(peakSato, 490 ether);
+        assertGt(weight, 0);
+        assertEq(uint8(rarity), uint8(SatoStonesVault.RarityTier.Mythic));
     }
 
-    function test_MintNoGenesisBelow500() public {
+    function test_MintRejectedAfterSingleSeasonEnds() public {
+        vm.warp(block.timestamp + vault.SEASON_DURATION());
         vm.prank(user);
-        vault.mint(300 ether, SatoStonesVault.LockDays.Fifteen);
-        (,,,,,, bool isGenesis,,) = vault.vaults(1);
-        assertFalse(isGenesis);
+        vm.expectRevert(SatoStonesVault.SeasonEnded.selector);
+        vault.mint(500 ether, SatoStonesVault.LockDays.Sixty);
     }
 
     function test_RedeemAfterLock() public {
         vm.prank(user);
         vault.mint(100 ether, SatoStonesVault.LockDays.Fifteen);
         vm.warp(block.timestamp + 16 days);
+        vault.finalizeSeason(0);
         uint256 before = sato.balanceOf(user);
         vm.prank(user);
         vault.redeem(1);
         assertGt(sato.balanceOf(user), before);
-        (, uint256 locked,,,,,,, bool redeemed) = vault.vaults(1);
+        (, uint256 locked,,,,, bool redeemed) = vault.vaults(1);
         assertEq(locked, 0);
         assertTrue(redeemed);
         assertEq(vault.ownerOf(1), user);
@@ -84,7 +90,7 @@ contract SatoStonesVaultTest is Test {
         vm.prank(user);
         vault.mint(1000 ether, SatoStonesVault.LockDays.Fifteen);
 
-        (uint256 peakSato,,,,,,,,) = vault.vaults(1);
+        (uint256 peakSato,,,,,,) = vault.vaults(1);
 
         uint256 seasonBefore = vault.seasonPool(0);
         uint256 devBefore = vault.devBalance();
@@ -177,6 +183,7 @@ contract SatoStonesVaultTest is Test {
         vault.earlyExit(1);
 
         vm.warp(block.timestamp + 31 days);
+        vault.finalizeSeason(0);
         uint256 requestId = vault.requestPrizeDraw();
         uint256 prize = vault.pendingDrawPrize();
 
@@ -197,15 +204,18 @@ contract SatoStonesVaultTest is Test {
         vault.earlyExit(1);
 
         vm.warp(block.timestamp + 31 days);
-        vm.expectRevert(SatoStonesVault.NoEligibleTickets.selector);
+        uint256 before = vault.prizeFund();
         vault.requestPrizeDraw();
+        assertEq(vault.pendingDrawPrize(), 0);
+        assertEq(vault.pendingDrawRequestId(), 0);
+        assertEq(vault.prizeFund(), before);
     }
 
     function test_EarlyExitPenaltyCeilsPartialDay() public {
         vm.prank(user);
         vault.mint(1000 ether, SatoStonesVault.LockDays.Fifteen);
 
-        (uint256 peakSato,, uint64 lockEnd,,,,,,) = vault.vaults(1);
+        (uint256 peakSato,, uint64 lockEnd,,,,) = vault.vaults(1);
         vm.warp(uint256(lockEnd) - 1);
 
         uint256 penalty = vault.getEarlyExitPenalty(1);
@@ -230,14 +240,14 @@ contract SatoStonesVaultTest is Test {
         vault.rawFulfillRandomWords(requestId, words);
     }
 
-    function test_SeasonUnclaimedGoesToCarry() public {
+    function test_FifteenDayMintAtT0IsSeasonEligible() public {
         vm.prank(user);
         vault.mint(100 ether, SatoStonesVault.LockDays.Fifteen);
 
         vm.warp(block.timestamp + 16 days);
         vault.finalizeSeason(0);
 
-        uint256 carry = vault.undistributedCarry();
-        assertGt(carry, 0);
+        assertEq(vault.snapshotOwner(0, 1), user);
+        assertGt(vault.claimableSeasonAmount(0, 1), 0);
     }
 }

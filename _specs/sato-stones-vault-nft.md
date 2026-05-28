@@ -1,343 +1,183 @@
 # Sato Stones — Vault NFT Specification
 
-> Version: 1.3  
-> Status: Ready for development  
-> Chain: Ethereum Mainnet (EVM)  
-> Replaces the deprecated fixed-tier bonding-curve mint model.
-
----
+> Version: simplified single-season, chunked snapshot draft
+> Chain: Ethereum Mainnet / Sepolia testing
 
 ## 1. Overview
 
-Sato Stones — коллекция из **2100** NFT (ERC-721A) на Ethereum. Каждый NFT — **vault**: пользователь выбирает сумму SATO для lock и срок (15 / 30 / 60 дней). SATO хранится в escrow контракта.
+Sato Stones is a 2,100 supply ERC721A vault NFT. Each Stone locks SATO in escrow. The user chooses:
 
-**Ключевой принцип:** SATO **не продаётся** на bonding-curve при mint. Токены лочатся → TVL и scarcity. Досрочный exit платит штраф; из штрафа **2%** идёт dev, остальное — pool / burn / prize.
+- gross deposit: **100–10,000 SATO** subject to the dynamic cap;
+- lock period: **15 / 30 / 60 days**.
 
-После окончания lock: **100% escrowed SATO** возвращается владельцу, NFT **остаётся** с зафиксированной редкостью (`peakSato`, tier, Genesis).
+The simplified design has exactly **one reward season**: `seasonId = 0`. There is **no special early-mint NFT tier**, no early-mint counter, no early-mint rank, and no early-mint weight multiplier.
 
-**Supply rule:** максимум **2100 mint ever**. `earlyExit` сжигает NFT, но **не** открывает новый слот для mint.
-
----
-
-## 2. Fixed parameters (canonical)
-
-| Parameter | Value |
-|-----------|-------|
-| Standard | ERC-721A |
-| Max supply | **2100 total mints ever** (burn via `earlyExit` does not free a slot) |
-| Min gross deposit (any mint) | 100 SATO |
-| Genesis qualification | Gross deposit **≥ 500 SATO**; first **21** qualifying mints (FIFO) |
-| `tokenId` | Sequential `#1…#2100` by mint order (independent of Genesis) |
-| Max gross deposit per NFT | min(10_000 SATO, 0.1% SATO `totalSupply()` at mint) |
-| Lock periods | **Only** 15 / 30 / 60 days (`enum`; other values revert) |
-| Mint fee | 200 bps of **gross** deposit → current season pool |
-| Escrow | `peakSato = gross × 9800 / 10_000` (fee-on-transfer safe, see §3) |
-| Early-exit penalty | Progressive on **`peakSato`** (see §3) |
-| Penalty split (of `penaltySato`) | 4800 pool / 3300 burn / 1500 prize / **200 dev** |
-| Transfer during lock | Allowed except **last 1 hour** of each global season (§9) |
-| After lock | `redeem()` → 100% `peakSato` remaining in vault; NFT kept |
-| Weight (stored at mint) | `weightAtMint = sqrt(peakSato) × lockMultiplier × genesisMult` |
-| Visual rarity | From `weightAtMint` at mint (§7) |
-| Re-lock same NFT | Not allowed |
-| Global seasons | 15 days from deploy `t0` |
-| Season transfer lockout | Last **3600 seconds** before each season end: transfers revert |
-| Max mints per wallet (lifetime) | 10 |
-| Max pool claim per wallet per season | 10% of distributable amount (`MAX_CLAIM_BPS = 1000`) |
-| Pool carryover | If `totalWeight == 0`, undistributed SATO → **next season** |
-| SATO burn address | `0x000000000000000000000000000000000000dEaD` |
-| `prizeMinSato` | Immutable (e.g. `50_000 ether` — set at deploy) |
-| `drawInterval` | Immutable draw cadence (e.g. 30 days) |
-| `PRIZE_DRAW_TIMEOUT` | 1 day; used only to recover a stuck pending VRF draw |
-| VRF | Chainlink VRF v2.5-compatible `requestRandomWords(RandomWordsRequest)` + `rawFulfillRandomWords`; subscription funded at deploy (see §10) |
-| Admin / pause / upgrade | None |
-
-All BPS, caps, and addresses above are **immutable** in the constructor.
-
----
-
-## 3. Mint intake, escrow, and penalties
-
-### Fee-on-transfer safe intake
+## 2. Mint
 
 ```text
-balanceBefore = sato.balanceOf(this)
-sato.safeTransferFrom(user, this, grossAmount)
-received = sato.balanceOf(this) - balanceBefore
-require(received >= grossAmount × 9800 / 10_000)   // tolerate small fee tokens; document if SATO fee-on-transfer
+mint(grossAmount, lockDays)
 ```
 
-If SATO charges transfer fee, use **`received`** as effective gross for fee/escrow math.
+Rules:
 
-### Escrow and peakSato
+- Revert if `totalMintedEver >= 2100`.
+- Revert if wallet already minted `MAX_MINTS_PER_WALLET`.
+- Revert after the single reward season ends: `block.timestamp >= t0 + SEASON_DURATION`.
+- Revert if `grossAmount < 100 SATO` or above `maxGrossForMint()`.
+- Pull SATO from caller.
+- `mintFee = received * 200 / 10_000` goes to `seasonPool[0]`.
+- `peakSato = received - mintFee` is escrowed in the vault.
+- `weightAtMint = sqrt(peakSato) × lockMultiplier`.
+- Mint exactly one NFT.
+
+Lock multipliers:
+
+| Lock | Multiplier | Base early-exit penalty |
+|---|---:|---:|
+| 15 days | 1.0× | 30% scaled by remaining days |
+| 30 days | 1.8× | 25% scaled by remaining days |
+| 60 days | 3.0× | 20% scaled by remaining days |
+
+## 3. Redeem / early exit
+
+After lock end, the current NFT owner can call `redeem(tokenId)`:
+
+- returns 100% of `satoLocked`;
+- marks the vault redeemed;
+- keeps the NFT alive as an empty collectible.
+
+Before lock end, the owner can call `earlyExit(tokenId)`:
+
+- computes a progressive penalty by remaining partial days, rounded up;
+- returns `satoLocked - penalty`;
+- burns the NFT;
+- routes penalty:
+  - 48% to reward pool before finalization, or to prize fund after finalization;
+  - 33% burn to `DEAD`;
+  - 15% prize fund;
+  - 2% dev;
+  - remaining dust to reward pool before finalization, or prize fund after finalization.
+
+After season end and before `seasonFinalized[0]`, redeem and early exit are paused so the season snapshot cannot be mutated mid-finalization. They are also paused during an active prize snapshot.
+
+## 4. One reward season
+
+Only `seasonId = 0` is valid.
 
 ```text
-mintFee      = gross × 200 / 10_000        → seasonPool[currentSeason]
-peakSato     = gross - mintFee             (or received - mintFee)
-lockEnd      = block.timestamp + lockDays × 1 days
-weightAtMint = sqrt(peakSato) × lockMultiplier × genesisMult
+currentSeasonId() = 0
+seasonEnd = t0 + SEASON_DURATION
 ```
 
-### Progressive penalty (on `earlyExit`)
+Season finalization is chunked:
 
 ```text
-require(block.timestamp < lockEnd)          // else use redeem()
-daysRemaining = ceil((lockEnd - block.timestamp) / 1 days)
-penaltyBps = basePenaltyBps[lock] × daysRemaining / lockDays
-penaltySato = peakSato × penaltyBps / 10_000
-userReceives = satoLocked - penaltySato     // satoLocked == peakSato until exit/redeem
+finalizeSeason(0)                         // default chunk
+processSeasonSnapshot(0, maxTokens)       // explicit chunk size
 ```
 
-| Lock | `lockMultiplier` | `basePenaltyBps` (day 1) |
-|------|------------------|--------------------------|
-| 15d | 1.0× | 3000 (30%) |
-| 30d | 1.8× | 2500 (25%) |
-| 60d | 3.0× | 2000 (20%) |
+Finalization:
 
-**Example tables** in v1.2 remain valid if **deposit = peakSato = 1000** (gross 1020.41… or gross 1000 with fee taken from gross: peakSato = 980).
+1. Callable after `seasonEnd` and only once.
+2. First chunk stores `seasonDistributable = seasonPool[0]` and sets `seasonPool[0] = 0`.
+3. Each chunk snapshots owners and adds weights for token IDs in its range.
+4. Eligibility is checked at `seasonEnd`, not at the chunk's block time:
+   - eligible if `satoLocked > 0` and `lockEnd >= seasonEnd`.
+5. When all token IDs are processed, set `seasonFinalized[0] = true`.
+6. If total eligible weight is zero, move `seasonDistributable` to `prizeFund`.
 
-**Penalty routing:** split `penaltySato` by 4800/3300/1500/200 bps (9800 bps explicit); remaining **200 bps** credited to **current season pool** with the 4800 bps portion; burn → `DEAD`.
-
-### Mint constraints
-
-- `quantity` per tx: **1** only in v1.3 (no batch mint).
-- `totalMinted() < 2100` or revert `MintedOut`.
-
----
-
-## 4. Genesis allocation
-
-1. Next `tokenId = totalMinted() + 1` before mint.
-2. If `gross >= 500 SATO` (effective received) and `genesisMinted < 21` → `isGenesis = true`, `genesisRank = ++genesisMinted`.
-3. Else `isGenesis = false`, `genesisRank = 0`.
-4. Gross `< 500` → never Genesis.
-
-| Order | Gross | `tokenId` | Genesis |
-|-------|-------|-----------|---------|
-| 1st | 300 | #1 | No |
-| 2nd | 500 | #2 | Genesis #1 |
-| 3rd | 100 | #3 | No |
-
-`genesisMult = 1.2` if `isGenesis`, else `1.0` — applied once into `weightAtMint`.
-
----
-
-## 5. Lifecycle
+Claims are lazy/pro-rata:
 
 ```text
-MINT → ACTIVE LOCK → (earlyExit | redeem) → (empty vault NFT if redeem)
+claimableSeasonAmount(0, tokenId)
+claimSeason(0, tokenId)
 ```
 
-| Step | Behavior |
-|------|----------|
-| **MINT** | Pull SATO, fee 2%, escrow `peakSato`, mint NFT, set `lockEnd`, `weightAtMint` |
-| **ACTIVE LOCK** | `satoLocked == peakSato`; eligible for pool/lottery snapshots |
-| **earlyExit** | Penalty on `peakSato`; split penalty; **burn NFT**; `totalMinted` unchanged; **no remint slot** |
-| **redeem** | Requires `block.timestamp >= lockEnd`; return all `satoLocked`; `satoLocked = 0`; NFT kept |
+- requires finalized season;
+- requires `msg.sender == snapshotOwner[0][tokenId]`;
+- can be claimed once;
+- amount is `seasonDistributable * weightAtMint / seasonTotalWeight[0]`.
 
----
+There is currently **no per-wallet season cap**. If a cap is reintroduced, it must be implemented with chunked per-wallet accounting, not O(n²) scans.
 
-## 6. Visual rarity and metadata
+## 5. Transfer lockout
 
-| `weightAtMint` | Tier | Visual |
-|----------------|------|--------|
-| 0 – 15 | Common | Grey stone |
-| 15 – 50 | Uncommon | Blue stone |
-| 50 – 150 | Rare | Purple stone |
-| 150+ | Mythic | Gold stone |
+Transfers are blocked:
 
-- **Genesis:** separate frame / trait (`isGenesis`, `genesisRank`); not the same asset as Mythic recolor.
-- Required fields: `tokenId`, `isGenesis`, `genesisRank`, `peakSatoLocked`, `lockDurationDays`, `rarityTier`, `status`.
+- during the last hour before reward-season end while the season is not finalized;
+- after season end until season finalization finishes;
+- during an active prize snapshot.
 
-**Post-redeem:** `status = redeemed`, `currentSatoLocked = 0`, `weightAtMint` unchanged for history; **no** pool/lottery eligibility.
+Mint and burn are not normal wallet-to-wallet transfers and are not affected by the ERC721 hook, but minting also closes at season end and early exit is paused after season end until finalization.
 
----
+## 6. Lottery
 
-## 7. Global seasons and community pool
+The prize fund is funded by:
 
-### Season timing
+- 15% of early-exit penalties;
+- reward-pool share of early exits after the single season has already been finalized;
+- zero-weight/unallocated season pool.
+
+Prize draw is chunked:
 
 ```text
-seasonId = (block.timestamp - t0) / (15 days)
-seasonEnd[seasonId] = t0 + (seasonId + 1) × 15 days
+requestPrizeDraw()                 // starts snapshot and processes default chunk
+processPrizeDrawSnapshot(maxTokens) // continues snapshot; final chunk sends VRF request
 ```
 
-### Pool inflows (accounting)
+`requestPrizeDraw()` can start when:
 
-| Source | Credited to |
-|--------|-------------|
-| Mint fee (2% gross) | `seasonPool[seasonId_at_mint]` |
-| 48% of `penaltySato` | `seasonPool[seasonId_at_exit]` |
+- VRF coordinator is configured;
+- no draw or prize snapshot is pending;
+- `prizeFund >= prizeMinSato`;
+- `block.timestamp >= lastPrizeDrawAt + prizeDrawInterval`.
 
-`undistributedCarry` — SATO not distributed in a season: `totalWeight == 0`, or unclaimed remainder after wallet-cap claims (`distributable - sum(claimAmount)`). Added to the **next** season’s distributable amount.
+The draw stores `prizeSnapshotAt = block.timestamp`. Eligibility across all chunks is checked at this request-time timestamp:
 
-### Transfer lockout (anti-gaming)
+- eligible if token exists, `satoLocked > 0`, and `lockEnd > prizeSnapshotAt`.
 
-If `block.timestamp >= seasonEnd[seasonId] - 3600` and `< seasonEnd[seasonId]`:
+During prize snapshot, transfers/redeem/early-exit are paused. If the snapshot completes with zero eligible tickets, the pending prize returns to `prizeFund` and no VRF request is made.
 
-- `_update` / transfer hooks **revert** `SeasonTransferLocked`.
+Winner receives `pendingPrize[winner]` and claims with `claimPrize()`.
 
-### Finalize (permissionless)
-
-Callable when `block.timestamp >= seasonEnd[seasonId]` and not yet finalized:
-
-1. For each `tokenId` from `1` to `totalMinted()`:
-   - If vault **eligible**: `satoLocked > 0` AND `block.timestamp < lockEnd` (still locked at finalize time):
-     - `snapshotOwner[seasonId][tokenId] = ownerOf(tokenId)`
-     - `totalWeight += weightAtMint[tokenId]`
-2. `distributable[seasonId] = seasonPool[seasonId] + undistributedCarry`
-3. If `totalWeight == 0`: move `distributable` to `undistributedCarry` for next season; mark finalized; **no claims**.
-4. Else compute `claimAmount`; any remainder from wallet cap / rounding (`distributable - sum(claimAmount)`) is returned to `undistributedCarry`.
-5. Mark `finalized[seasonId] = true`.
-
-**Note:** Run finalize promptly after season end. Owners at finalize block are binding for claims. Last-hour transfer lock reduces sniping before boundary.
-
-### Claim
-
-```text
-claimSeason(seasonId, tokenId):
-  require finalized[seasonId]
-  require msg.sender == snapshotOwner[seasonId][tokenId]
-  require !claimed[seasonId][tokenId]
-  raw = distributable[seasonId] × weightAtMint[tokenId] / totalWeight[seasonId]
-```
-
-**Per-wallet 10% cap** (same `seasonId`, same `msg.sender`):
-
-```text
-walletRaw = sum(raw for all tokenIds owned at claim time with same snapshotOwner == msg.sender)
-walletCap = distributable[seasonId] × 1000 / 10_000
-if walletRaw > walletCap:
-  paid = raw × walletCap / walletRaw    // scale down each claim proportionally
-else:
-  paid = raw
-```
-
-Set `claimed[seasonId][tokenId] = true`; transfer the precomputed `claimAmount[seasonId][tokenId]` SATO.
-
-Claims have no expiry. Remainder from wallet cap / rounding is carried at finalize time.
-
----
-
-## 8. Lottery (prize fund)
-
-| Parameter | Value |
-|-----------|-------|
-| Inflows | 15% of each `penaltySato` (SATO) |
-| `prizeMinSato` | Immutable fixed SATO (no ETH oracle) |
-| Draw | Permissionless when `prizeFund >= prizeMinSato`, interval elapsed, and **`pendingDrawPrize == 0`** |
-| Tickets | `weightAtMint` among vaults with `satoLocked > 0` and `block.timestamp < lockEnd` at request-time draw snapshot |
-| Randomness | Chainlink VRF v2.5 only on mainnet |
-| Payout | `claimPrize()` pull pattern |
-| Recovery | If VRF callback does not arrive before `lastPrizeDrawAt + PRIZE_DRAW_TIMEOUT`, anyone can call `recoverTimedOutPrizeDraw()` to move `pendingDrawPrize` back to `prizeFund` |
-
-**VRF funding:** deployer funds Chainlink subscription at deploy; contract holds no admin to refill — document operational refill as **non-contract** ops (LINK top-up).
-
----
-
-## 9. Secondary market
-
-- Buyer inherits `lockEnd`, escrow, redeem/exit rights.
-- **Pool claims** belong to `snapshotOwner` recorded at finalize, not necessarily current owner if NFT sold before finalize (price claim rights into sale).
-- Rational floor ≈ `satoLocked × spot × (1 - expectedPenalty) + rarityPremium + pendingClaimValue`.
-
----
-
-## 10. Smart contract surface
+## 7. Contract surface
 
 ```text
 SatoStonesVault.sol
-  mint(grossAmount, lockDays)     // enum lockDays; qty=1
-  earlyExit(tokenId)              // burns NFT
+  mint(grossAmount, lockDays)
+  earlyExit(tokenId)
   redeem(tokenId)
-  finalizeSeason(seasonId)
-  claimSeason(seasonId, tokenId)
-  requestPrizeDraw() / rawFulfillRandomWords / recoverTimedOutPrizeDraw() / claimPrize()
-  withdrawDev()                   // to immutable devAddress
-  previewMint(), maxGrossForMint(), getEarlyExitPenalty()
+  finalizeSeason(0)
+  processSeasonSnapshot(0, maxTokens)
+  claimableSeasonAmount(0, tokenId)
+  claimSeason(0, tokenId)
+  requestPrizeDraw()
+  processPrizeDrawSnapshot(maxTokens)
+  rawFulfillRandomWords(requestId, words)
+  recoverTimedOutPrizeDraw()
+  claimPrize()
+  withdrawDev()
+  previewMint(grossAmount, lockDays)
+  maxGrossForMint()
+  getEarlyExitPenalty(tokenId)
 
-Mappings:
-  vault[tokenId]: peakSato, satoLocked, lockDays, lockEnd, weightAtMint,
-                  isGenesis, genesisRank, rarityTier
-  seasonPool, distributable, totalWeight, snapshotOwner, claimed, finalized
-  genesisMinted, undistributedCarry, devBalance, prizeFund, pendingDrawPrize, pendingDrawRequestId
+Vault:
+  peakSato
+  satoLocked
+  lockEnd
+  weightAtMint
+  lockDays
+  rarity
+  redeemed
 ```
 
-**SATO:** `0x829f4B62EEBE12Af653b4dD4fFc480966F7d7f09` (immutable).
+## 8. Main invariants
 
----
-
-## 11. Risks and mitigations
-
-| Risk | Severity | Mitigation |
-|------|----------|------------|
-| Transfer gaming before finalize | Medium | 1h season transfer lockout; snapshotOwner at finalize |
-| Snapshot owner ≠ fair | Medium | Public finalize bot; document timing |
-| Coordinated early exit | Medium | 10% wallet claim cap; exit burns NFT (no weight) |
-| Sybil / split NFTs | Medium | sqrt weight; max 10 mints/wallet |
-| 2100 cap confusion after burn | High | Spec: burn does not reopen mint |
-| Fee-on-transfer SATO | Medium | Balance-delta intake |
-| Empty season pool | Low | Carryover to next season |
-| Prize fund starvation | Medium | Fixed `prizeMinSato`; draws wait |
-| Reentrancy | Critical | `ReentrancyGuard` + CEI |
-| Genesis MEV race | Medium | Product: fair launch comms; max 10/wallet |
-
----
-
-## 12. Legacy comparison
-
-| Aspect | Legacy contract | Vault NFT v1.3 |
-|--------|-----------------|----------------|
-| Mint | Fixed tier → curve sell | Escrow lock, no curve |
-| Genesis | First 21 by tier order | First 21 with gross ≥ 500 SATO |
-| Community | ETH split | SATO pool + seasons |
-| Dev | 10% ETH | 2% of penalty SATO |
-
----
-
-## 13. Implementation checklist
-
-- [ ] `totalMinted <= 2100` forever; early exit burn does not allow new mint
-- [ ] Gross → fee 2% → `peakSato`; penalty on `peakSato`
-- [ ] Balance-delta `transferFrom` intake
-- [ ] `lockDays` enum only (15/30/60)
-- [ ] `weightAtMint` immutable; pool/lottery use it
-- [ ] Season transfer lockout last 1h
-- [ ] `finalizeSeason` writes `snapshotOwner` + `totalWeight`
-- [ ] `claimSeason`: `msg.sender == snapshotOwner`; 10% wallet scale
-- [ ] Carryover when `totalWeight == 0`
-- [ ] Genesis FIFO ≥500 SATO; `genesisRank` 1–21
-- [ ] Penalty split 4800/3300/1500/200
-- [ ] `prizeMinSato` fixed; VRF subscription documented
-- [ ] Fuzz penalty tables vs §3
-- [ ] Frontend vault UX (`sato-stones-frontend.md`)
-
----
-
-## 14. Decision log
-
-### v1.3 (audit fixes)
-
-| # | Topic | Decision |
-|---|--------|----------|
-| 13 | Snapshot claim | `snapshotOwner` at `finalizeSeason`; claim only by snapshot owner |
-| 14 | Supply cap | 2100 mints ever; burn on early exit |
-| 15 | Escrow | 2% fee from gross; penalty on `peakSato` |
-| 16 | Zero-weight season | Pool carryover |
-| 17 | Wallet cap algorithm | Proportional scale to 10% |
-| 18 | `prizeMinSato` | Fixed SATO, no oracle |
-| 19 | Season sniping | 1h transfer lock before season end |
-| 20 | `weightAtMint` | Stored at mint for snapshots |
-| 21 | Early-exit penalty | Ceil partial remaining days, so exits in the final partial day still pay one-day penalty |
-| 22 | Prize draw VRF | Chainlink VRF v2.5 request struct and `rawFulfillRandomWords`; callback uses request-time ticket snapshot |
-| 23 | Prize draw recovery | Stuck VRF recovery uses `PRIZE_DRAW_TIMEOUT = 1 day`, independent from draw cadence |
-
-### v1.2
-
-| # | Topic | Decision |
-|---|--------|----------|
-| 11 | Genesis vs tokenId | Decoupled; ≥500 SATO FIFO |
-| 12 | First minter 100–499 | Allowed, not Genesis |
-
-### v1.1
-
-Weight sqrt, progressive penalty, no admin, 15d seasons, dev 2% of penalty.
+- `totalMintedEver <= 2100`.
+- Each token can be redeemed or early-exited at most once.
+- Redeem returns exactly the locked `satoLocked` amount.
+- Early exit burns the NFT and cannot reopen supply.
+- Only season `0` can be finalized or claimed.
+- A Stone minted at `t0` with a 15-day lock is eligible for the season because `lockEnd == seasonEnd`.
+- No special early-mint storage, events, UI, or weight multiplier exists.
+- Contract SATO accounting must cover locked balances, unclaimed rewards, pending prizes, prize fund, and dev balance.

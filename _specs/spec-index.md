@@ -10,11 +10,11 @@
 
 | Spec | Path | Scope |
 |------|------|--------|
-| Sato Stones Vault NFT | [sato-stones-vault-nft.md](./sato-stones-vault-nft.md) | Variable SATO lock, penalties, seasons, pool, lottery |
-| Frontend | [sato-stones-frontend.md](./sato-stones-frontend.md) | Wallet, mint/redeem UX, errors |
-| Utility and season perks | [sato-stones-utility.md](./sato-stones-utility.md) | Off-chain Heat, seasons, lottery weight policy |
-| Keeper and monitoring runbook | [operations-runbook.md](./operations-runbook.md) | Season finalize, prize draw automation |
+| Sato Stones Vault NFT | [sato-stones-vault-nft.md](./sato-stones-vault-nft.md) | Variable SATO lock, penalties, one reward season, pool, lottery |
+| Frontend | [sato-stones-frontend.md](./sato-stones-frontend.md) | Wallet, mint/redeem UX, reward claims, errors |
+| Utility | [sato-stones-utility.md](./sato-stones-utility.md) | Optional off-chain Heat / future perks |
+| Keeper and monitoring runbook | [operations-runbook.md](./operations-runbook.md) | Reward-season finalize, prize draw automation |
 | Security audit plan | [security-audit-plan.md](./security-audit-plan.md) | Scope, invariants, pre-mainnet checklist |
-| Marketing sync | [marketing-sync.md](./marketing-sync.md) | Public messaging for Vault / Genesis |
+| Marketing sync | [marketing-sync.md](./marketing-sync.md) | Public messaging for simplified Vault |
 
 When changing `src/SatoStonesVault.sol` or `web/app-vault.js`, update the matching spec in the same PR.

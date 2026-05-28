@@ -7,4 +7,6 @@ window.SATO_STONES_CONFIG = {
   rpcUrls: ["https://ethereum-sepolia-rpc.publicnode.com"],
   explorerBaseUrl: "https://sepolia.etherscan.io",
   maxSupply: 2100,
+  // Public indexer service — see indexer/README.md. Empty disables the indexer path.
+  indexerUrl: "https://sato-stones-indexer-atropos.zocomputer.io",
 };
