@@ -17,7 +17,7 @@ function renderStones(rows) {
   const grid = $("stonesGrid");
   if (!grid) return;
   const myIds = rows.map((r) => Number(r.tokenId));
-  const key = myIds.join(",");
+  const key = rows.map(r => `${r.tokenId}:${r.satoLocked}:${r.lockEnd}:${r.redeemed}:${r.exited}`).join(",");
   if (key === lastTokenIdsKey && grid.children.length === myIds.length) {
     state.userTokenIds = myIds;
     return;

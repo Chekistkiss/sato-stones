@@ -27,7 +27,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   initActionDelegation();
   setWalletHooks({
     onConnected: async () => {
-      await refetchAll({ stones: true, mint: true });
+      await refetchAll({ stones: true, mint: true, season: true, lottery: true });
       ctaApi?.refresh?.();
     },
     onReset: async () => {

@@ -370,6 +370,7 @@ ponder.on("SatoStonesVault:DevWithdrawn", async ({ event: ev, context }) => {
 ponder.on("SatoStonesVault:Transfer", async ({ event: ev, context }) => {
   const { from, to, tokenId } = ev.args;
   if (from.toLowerCase() === ZERO_ADDR) return; // mint
+  if (to.toLowerCase() === ZERO_ADDR) return; // burn — handled by EarlyExit/Redeemed
   const cur = await context.db.find(stone, { tokenId });
   if (cur && cur.owner.toLowerCase() === from.toLowerCase()) {
     await context.db.update(stone, { tokenId }).set({ owner: to });
