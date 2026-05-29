@@ -24,7 +24,6 @@ export default createConfig({
       startBlock: VAULT_START_BLOCK,
     },
   },
-  database: process.env.DATABASE_URL
-    ? { kind: "postgres", connectionString: process.env.DATABASE_URL }
-    : { kind: "pglite" },
+  database: { kind: "pglite", directory: ".ponder/pglite" },
+  schema: "sato_stones",
 });
